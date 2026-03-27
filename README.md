@@ -2,7 +2,7 @@
 
 中文 | [English](README_EN.md)
 
-基于用户TobyFoxpurePython的supermario1-1（https://github.com/TobyfoxpurePython/-python）制作的马里奥项目：
+基于用户TobyFoxpurePython的supermario1-1（https://github.com/TobyfoxpurePython/-python） 制作的马里奥项目：
 
 ## 运行方式
 
