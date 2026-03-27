@@ -1,6 +1,8 @@
 # Super Mario Creater for PC
 
-基于 Python + pygame 的马里奥项目，支持两种玩法：
+中文 | [English](README_EN.md)
+
+基于用户TobyFoxpurePython的supermario1-1（https://github.com/TobyfoxpurePython/-python）制作的马里奥项目：
 
 ## 运行方式
 
@@ -11,7 +13,7 @@
 
 3. 启动游戏
 
-	python mario_level_1.py
+	python mario_open.py
 
 ## 游戏键位（游玩时）
 
@@ -23,28 +25,28 @@
 | 右移 | D |
 | 跳跃 | K |
 | 冲刺/动作 | J |
-| 下蹲 | 方向键 Down |
+| 下蹲 | S |
 | 退出当前自定义关卡 | ESC |
 
 ### 通用界面操作
-
+![alt text](image-2.png)
 | 功能 | 键位 |
 |---|---|
 | 确认（菜单） | Enter / K |
-| 菜单上下选择 | 方向键 Up / Down |
+| 菜单上下选择 | 方向键 Up / Down 或 W / S |
 | 中英文切换 | L |
 
 ### 自定义关卡选择界面
-
+![alt text](image-3.png)
 | 功能 | 键位 |
 |---|---|
-| 上下选择关卡 | 方向键 Up / Down |
+| 上下选择关卡 | 方向键 Up / Down 或 W / S |
 | 游玩选中关卡 | Enter / K |
 | 删除选中关卡（两次确认） | Delete 或 X |
 | 取消删除确认 / 返回 | ESC |
 
 ## 关卡编辑器键位
-
+![alt text](image-4.png)
 ### 地图与方块编辑
 
 | 功能 | 键位 |
@@ -89,7 +91,7 @@
 
 ## 项目结构
 
-- mario_level_1.py: 程序入口
+- mario_open.py: 程序入口
 - data/states/level_editor.py: 关卡编辑器
 - data/states/level_select.py: 自定义关卡选择界面
 - data/states/custom_level.py: 自定义关卡运行时

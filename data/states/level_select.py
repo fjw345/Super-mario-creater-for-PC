@@ -134,13 +134,13 @@ class LevelSelect(tools._State):
         elif not keys[pg.K_l]:
             self.lang_key_pressed = False
 
-        if keys[pg.K_DOWN] and not self.key_pressed:
+        if (keys[pg.K_DOWN] or keys[pg.K_s]) and not self.key_pressed:
             self.cursor_index = min(self.cursor_index + 1, len(self.level_names) - 1)
             self.delete_confirm_pending = False
             self.key_pressed = True
             self.update_scroll()
         
-        elif keys[pg.K_UP] and not self.key_pressed:
+        elif (keys[pg.K_UP] or keys[pg.K_w]) and not self.key_pressed:
             self.cursor_index = max(self.cursor_index - 1, 0)
             self.delete_confirm_pending = False
             self.key_pressed = True
@@ -162,7 +162,7 @@ class LevelSelect(tools._State):
             else:
                 self.done = True
         
-        if not any([keys[pg.K_DOWN], keys[pg.K_UP], keys[pg.K_RETURN], 
+        if not any([keys[pg.K_DOWN], keys[pg.K_s], keys[pg.K_UP], keys[pg.K_w], keys[pg.K_RETURN], 
                    keys[pg.K_k], keys[pg.K_ESCAPE], keys[pg.K_DELETE], keys[pg.K_x]]):
             self.key_pressed = False
     

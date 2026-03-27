@@ -178,17 +178,17 @@ class Menu(tools._State):
                 self.wait_for_confirm_release = False
             return
 
-        if keys[pg.K_DOWN] and not self.key_pressed:
+        if (keys[pg.K_DOWN] or keys[pg.K_s]) and not self.key_pressed:
             self.cursor_index = (self.cursor_index + 1) % len(self.menu_options)
             self.cursor.state = self.menu_options[self.cursor_index]
             self.cursor.rect.y = self.cursor_positions[self.cursor_index]
             self.key_pressed = True
-        elif keys[pg.K_UP] and not self.key_pressed:
+        elif (keys[pg.K_UP] or keys[pg.K_w]) and not self.key_pressed:
             self.cursor_index = (self.cursor_index - 1) % len(self.menu_options)
             self.cursor.state = self.menu_options[self.cursor_index]
             self.cursor.rect.y = self.cursor_positions[self.cursor_index]
             self.key_pressed = True
-        elif not keys[pg.K_DOWN] and not keys[pg.K_UP]:
+        elif not (keys[pg.K_DOWN] or keys[pg.K_s] or keys[pg.K_UP] or keys[pg.K_w]):
             self.key_pressed = False
 
         for input_key in input_list:
