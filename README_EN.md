@@ -27,7 +27,7 @@ A Mario project built by https://github.com/TobyfoxpurePython/-python, supportin
 | Exit current custom level | ESC |
 
 ### General UI Controls
-![alt text](image-1.png)
+![alt text](docs/screenshots/image-1.png)
 | Action | Key |
 |---|---|
 | Confirm (menu) | Enter / K |
@@ -35,7 +35,7 @@ A Mario project built by https://github.com/TobyfoxpurePython/-python, supportin
 | Switch language (ZH/EN) | L |
 
 ### Custom Level Select Screen
-![alt text](image-6.png)
+![alt text](docs/screenshots/image-6.png)
 | Action | Key |
 |---|---|
 | Select level up/down | Arrow Up / Down or W / S |
@@ -44,7 +44,7 @@ A Mario project built by https://github.com/TobyfoxpurePython/-python, supportin
 | Cancel delete / Back | ESC |
 
 ## Level Editor Controls
-![alt text](image-5.png)
+![alt text](docs/screenshots/image-5.png)
 ### Map and Tile Editing
 
 | Action | Key |

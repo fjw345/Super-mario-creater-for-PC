@@ -196,6 +196,17 @@ class Koopa(Enemy):
             self.x_vel = -10
 
 
+    def animation(self):
+        """Animate Koopa and mirror walk/fall frames when moving right."""
+        image = self.frames[self.frame_index]
+
+        # Koopa source art faces left; mirror while walking/falling right.
+        if self.direction == c.RIGHT and self.state in (c.WALK, c.FALL):
+            image = pg.transform.flip(image, True, False)
+
+        self.image = image
+
+
 
 
 

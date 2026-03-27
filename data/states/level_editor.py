@@ -33,7 +33,7 @@ class LevelEditor(tools._State):
         
         # Level data - 2D array storing tile types
         self.level_data = []
-        self.reset_level_data()
+        self.restore_editor_state_if_needed()
         
         # Current selected tile type
         # Slot order:
@@ -60,6 +60,7 @@ class LevelEditor(tools._State):
         self.help_tab_click_pressed = False
         self.wait_for_escape_release = True
         self.clear_confirm_pending = False
+        self.exit_confirm_pending = False
         self.naming_mode = False
         self.name_input = ""
         self.name_error = ""
@@ -67,6 +68,7 @@ class LevelEditor(tools._State):
         self.show_help_panel = True
         self.help_panel_width = 290
         self.level_name = "custom_level"
+        self.has_unsaved_changes = False
 
         # Mario spawn preview (same start as runtime custom level).
         self.spawn_world_x = 110
@@ -87,6 +89,26 @@ class LevelEditor(tools._State):
         for x in range(self.grid_width):
             self.level_data[self.grid_height - 1][x] = c.TILE_GROUND
             self.level_data[self.grid_height - 2][x] = c.TILE_GROUND
+
+
+    def restore_editor_state_if_needed(self):
+        """Restore map/camera after test play return; otherwise start fresh."""
+        if self.game_info.get('editor_resume_after_test'):
+            saved = self.game_info.get('editor_saved_level_data')
+            if isinstance(saved, list) and saved:
+                self.level_data = [row[:] for row in saved]
+            else:
+                self.reset_level_data()
+
+            self.camera_x = self.game_info.get('editor_saved_camera_x', 0)
+            self.current_tile_index = self.game_info.get('editor_saved_tile_index', 0)
+            self.current_tile_index = max(0, min(self.current_tile_index, len(self.tile_types) - 1))
+            self.level_name = self.game_info.get('editor_saved_level_name', 'custom_level')
+            self.has_unsaved_changes = bool(self.game_info.get('editor_saved_unsaved_changes', False))
+            self.game_info['editor_resume_after_test'] = False
+        else:
+            self.reset_level_data()
+            self.has_unsaved_changes = False
     
     def setup_sprites(self):
         """Load sprite images for tiles"""
@@ -362,6 +384,8 @@ class LevelEditor(tools._State):
             if self.clear_confirm_pending:
                 self.reset_level_data()
                 self.clear_confirm_pending = False
+                self.has_unsaved_changes = True
+                self.exit_confirm_pending = False
             else:
                 self.clear_confirm_pending = True
             self.key_pressed = True
@@ -370,12 +394,24 @@ class LevelEditor(tools._State):
         elif keys[pg.K_ESCAPE] and not self.key_pressed:
             if self.clear_confirm_pending:
                 self.clear_confirm_pending = False
+            elif self.has_unsaved_changes and not self.exit_confirm_pending:
+                self.exit_confirm_pending = True
+                self.ui_message = self.tr('检测到未保存修改，再按一次ESC确认退出',
+                                          'Unsaved changes detected, press ESC again to exit')
             else:
                 self.done = True
             self.key_pressed = True
         
         # Test play with T
         elif keys[pg.K_t] and not self.key_pressed:
+            # Save an in-memory editor snapshot so returning from test keeps current work.
+            self.persist['editor_saved_level_data'] = [row[:] for row in self.level_data]
+            self.persist['editor_saved_camera_x'] = self.camera_x
+            self.persist['editor_saved_tile_index'] = self.current_tile_index
+            self.persist['editor_saved_level_name'] = self.level_name
+            self.persist['editor_saved_unsaved_changes'] = self.has_unsaved_changes
+            self.persist['editor_resume_after_test'] = True
+
             save_path = self.save_level('上次测试的关卡')
             if save_path:
                 self.persist['custom_level_path'] = save_path
@@ -442,11 +478,17 @@ class LevelEditor(tools._State):
             
             # Left click to place tile
             if mouse_buttons[0]:
-                self.level_data[grid_y][grid_x] = self.current_tile
+                if self.level_data[grid_y][grid_x] != self.current_tile:
+                    self.level_data[grid_y][grid_x] = self.current_tile
+                    self.has_unsaved_changes = True
+                    self.exit_confirm_pending = False
             
             # Right click to erase (set to empty)
             elif mouse_buttons[2]:
-                self.level_data[grid_y][grid_x] = c.TILE_EMPTY
+                if self.level_data[grid_y][grid_x] != c.TILE_EMPTY:
+                    self.level_data[grid_y][grid_x] = c.TILE_EMPTY
+                    self.has_unsaved_changes = True
+                    self.exit_confirm_pending = False
     
     def draw(self, surface):
         """Draw the editor interface"""
@@ -575,17 +617,17 @@ class LevelEditor(tools._State):
             self.tr(f"当前: {tile_name}", f"Current: {tile_name}"),
             True,
             c.WHITE)
-        surface.blit(name_text, (430, 15))
+        surface.blit(name_text, (500, 15))
         
         help_hint = self.small_font.render(
             self.tr("H 折叠/展开右侧说明表", "H Collapse/Expand Right Help Table"),
             True,
             c.WHITE)
-        surface.blit(help_hint, (430, 46))
+        surface.blit(help_hint, (500, 46))
         
         # Draw camera position
         pos_text = self.small_font.render(f"Pos: {self.camera_x}", True, c.WHITE)
-        surface.blit(pos_text, (750, 15))
+        surface.blit(pos_text, (690, 15))
 
         if self.clear_confirm_pending:
             clear_tip = self.small_font.render(
@@ -594,6 +636,13 @@ class LevelEditor(tools._State):
                 c.GOLD)
             clear_rect = clear_tip.get_rect(centerx=c.SCREEN_WIDTH // 2, y=78)
             surface.blit(clear_tip, clear_rect)
+
+        if self.has_unsaved_changes:
+            unsaved_text = self.small_font.render(
+                self.tr('状态: 未保存', 'Status: Unsaved'),
+                True,
+                c.GOLD)
+            surface.blit(unsaved_text, (690, 40))
 
         if self.ui_message:
             msg = self.small_font.render(self.ui_message, True, c.GOLD)
@@ -831,6 +880,8 @@ class LevelEditor(tools._State):
         print(f"Level saved to {filepath}")
         self.ui_message = self.tr(f'保存成功: {self.level_name}',
                                   f'Saved: {self.level_name}')
+        self.has_unsaved_changes = False
+        self.exit_confirm_pending = False
         return filepath
 
 

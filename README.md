@@ -29,7 +29,7 @@
 | 退出当前自定义关卡 | ESC |
 
 ### 通用界面操作
-![alt text](image-2.png)
+![alt text](docs/screenshots/image-2.png)
 | 功能 | 键位 |
 |---|---|
 | 确认（菜单） | Enter / K |
@@ -37,7 +37,7 @@
 | 中英文切换 | L |
 
 ### 自定义关卡选择界面
-![alt text](image-3.png)
+![alt text](docs/screenshots/image-3.png)
 | 功能 | 键位 |
 |---|---|
 | 上下选择关卡 | 方向键 Up / Down 或 W / S |
@@ -46,7 +46,7 @@
 | 取消删除确认 / 返回 | ESC |
 
 ## 关卡编辑器键位
-![alt text](image-4.png)
+![alt text](docs/screenshots/image-4.png)
 ### 地图与方块编辑
 
 | 功能 | 键位 |
