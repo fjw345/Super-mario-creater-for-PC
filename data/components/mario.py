@@ -400,8 +400,17 @@ class Mario(pg.sprite.Sprite):
         """Updates Mario's states and animations once per frame"""
         self.current_time = game_info[c.CURRENT_TIME]
         self.handle_state(keys, fire_group)
+        self.clamp_horizontal_speed()
         self.check_for_special_state()
         self.animation()
+
+
+    def clamp_horizontal_speed(self):
+        """Guarantee horizontal velocity stays within configured cap."""
+        if self.x_vel > self.max_x_vel:
+            self.x_vel = self.max_x_vel
+        elif self.x_vel < -self.max_x_vel:
+            self.x_vel = -self.max_x_vel
 
 
     def handle_state(self, keys, fire_group):

@@ -36,16 +36,16 @@ GROUND_HEIGHT = SCREEN_HEIGHT - 62
 
 #MARIO FORCES
 WALK_ACCEL = .15
-RUN_ACCEL = 20
+RUN_ACCEL = .20
 SMALL_TURNAROUND = .35
 
 GRAVITY = 1.01
 JUMP_GRAVITY = .31
-JUMP_VEL = -10
-FAST_JUMP_VEL = -12.5
+JUMP_VEL = -11
+FAST_JUMP_VEL = -13.75
 MAX_Y_VEL = 11
 
-MAX_RUN_SPEED = 800
+MAX_RUN_SPEED = 8.0
 MAX_WALK_SPEED = 6
 
 
@@ -154,6 +154,8 @@ CURRENT_TIME = 'current time'
 LEVEL_STATE = 'level state'
 CAMERA_START_X = 'camera start x'
 MARIO_DEAD = 'mario dead'
+LANGUAGE = 'language'
+CUSTOM_LEVEL_RETURN = 'custom level return'
 
 #STATES FOR ENTIRE GAME
 MAIN_MENU = 'main menu'
@@ -169,6 +171,29 @@ WORLD_CLEAR = 'world clear'
 TIME_WARNING = 'time warning'
 SPED_UP_NORMAL = 'sped up normal'
 MARIO_INVINCIBLE = 'mario invincible'
+
+#LEVEL EDITOR STATES
+LEVEL_EDITOR = 'level editor'
+LEVEL_SELECT = 'level select'
+CUSTOM_LEVEL = 'custom level'
+
+#EDITOR MENU CURSOR STATES
+CREATE_LEVEL = 'create level'
+PLAY_LEVEL = 'play level'
+PLAY_1_1 = 'play 1-1'
+
+#EDITOR TILE TYPES
+TILE_GROUND = 'ground'
+TILE_BRICK = 'brick'
+TILE_COIN_BOX = 'coin_box'
+TILE_PIPE = 'pipe'
+TILE_GOOMBA = 'goomba'
+TILE_KOOPA = 'koopa'
+TILE_COIN = 'coin'
+TILE_FLAG = 'flag'
+TILE_MUSHROOM = 'mushroom_tile'
+TILE_FIREFLOWER = 'fireflower_tile'
+TILE_EMPTY = 'empty'
 
 
 
