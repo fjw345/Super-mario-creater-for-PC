@@ -13,6 +13,7 @@ class LevelEditor(tools._State):
     
     def __init__(self):
         tools._State.__init__(self)
+        self._editor_test_snapshot = None
         
     def startup(self, current_time, persist):
         """Initialize the level editor"""
@@ -33,7 +34,6 @@ class LevelEditor(tools._State):
         
         # Level data - 2D array storing tile types
         self.level_data = []
-        self.restore_editor_state_if_needed()
         
         # Current selected tile type
         # Slot order:
@@ -70,6 +70,10 @@ class LevelEditor(tools._State):
         self.level_name = "custom_level"
         self.has_unsaved_changes = False
 
+        # Restore previous editor snapshot after test-run, otherwise start fresh.
+        self.restore_editor_state_if_needed()
+        self.current_tile = self.tile_types[self.current_tile_index]
+
         # Mario spawn preview (same start as runtime custom level).
         self.spawn_world_x = 110
         self.spawn_world_bottom = c.GROUND_HEIGHT
@@ -93,22 +97,41 @@ class LevelEditor(tools._State):
 
     def restore_editor_state_if_needed(self):
         """Restore map/camera after test play return; otherwise start fresh."""
-        if self.game_info.get('editor_resume_after_test'):
-            saved = self.game_info.get('editor_saved_level_data')
-            if isinstance(saved, list) and saved:
-                self.level_data = [row[:] for row in saved]
-            else:
-                self.reset_level_data()
+        snapshot = None
 
-            self.camera_x = self.game_info.get('editor_saved_camera_x', 0)
-            self.current_tile_index = self.game_info.get('editor_saved_tile_index', 0)
+        if self.game_info.get('editor_resume_after_test'):
+            snapshot = self.game_info.get('editor_test_snapshot')
+
+            # Fallback for older saved key format.
+            if snapshot is None:
+                saved = self.game_info.get('editor_saved_level_data')
+                if isinstance(saved, list) and saved:
+                    snapshot = {
+                        'level_data': [row[:] for row in saved],
+                        'camera_x': self.game_info.get('editor_saved_camera_x', 0),
+                        'tile_index': self.game_info.get('editor_saved_tile_index', 0),
+                        'level_name': self.game_info.get('editor_saved_level_name', 'custom_level'),
+                        'unsaved': bool(self.game_info.get('editor_saved_unsaved_changes', False)),
+                    }
+
+            # Final fallback in case persist dict was reset unexpectedly.
+            if snapshot is None:
+                snapshot = self._editor_test_snapshot
+
+        if snapshot and isinstance(snapshot.get('level_data'), list):
+            self.level_data = [row[:] for row in snapshot['level_data']]
+            self.camera_x = snapshot.get('camera_x', 0)
+            self.current_tile_index = snapshot.get('tile_index', 0)
             self.current_tile_index = max(0, min(self.current_tile_index, len(self.tile_types) - 1))
-            self.level_name = self.game_info.get('editor_saved_level_name', 'custom_level')
-            self.has_unsaved_changes = bool(self.game_info.get('editor_saved_unsaved_changes', False))
-            self.game_info['editor_resume_after_test'] = False
+            self.level_name = snapshot.get('level_name', 'custom_level')
+            self.has_unsaved_changes = bool(snapshot.get('unsaved', False))
         else:
             self.reset_level_data()
             self.has_unsaved_changes = False
+
+        self.game_info['editor_resume_after_test'] = False
+        self.game_info.pop('editor_test_snapshot', None)
+        self._editor_test_snapshot = None
     
     def setup_sprites(self):
         """Load sprite images for tiles"""
@@ -405,12 +428,23 @@ class LevelEditor(tools._State):
         # Test play with T
         elif keys[pg.K_t] and not self.key_pressed:
             # Save an in-memory editor snapshot so returning from test keeps current work.
+            snapshot = {
+                'level_data': [row[:] for row in self.level_data],
+                'camera_x': self.camera_x,
+                'tile_index': self.current_tile_index,
+                'level_name': self.level_name,
+                'unsaved': self.has_unsaved_changes,
+            }
+            self._editor_test_snapshot = snapshot
+            self.persist['editor_test_snapshot'] = snapshot
+            self.persist['editor_resume_after_test'] = True
+
+            # Keep old keys for backward compatibility with existing sessions.
             self.persist['editor_saved_level_data'] = [row[:] for row in self.level_data]
             self.persist['editor_saved_camera_x'] = self.camera_x
             self.persist['editor_saved_tile_index'] = self.current_tile_index
             self.persist['editor_saved_level_name'] = self.level_name
             self.persist['editor_saved_unsaved_changes'] = self.has_unsaved_changes
-            self.persist['editor_resume_after_test'] = True
 
             save_path = self.save_level('上次测试的关卡')
             if save_path:
