@@ -51,6 +51,7 @@ class CustomLevel(tools._State):
         self.level_path = self.game_info.get('custom_level_path', None)
         self.tile_size = 43
         self.grid_height = 13
+        self.flag_tile = None
         
         if self.level_path and os.path.exists(self.level_path):
             self.load_level()
@@ -59,8 +60,9 @@ class CustomLevel(tools._State):
             self.level_data = None
             self.grid_width = 50
         
-        self.setup_background()
         self.setup_world_images()
+        self.find_flag_tile()
+        self.setup_background()
         self.setup_groups()
         self.setup_level_from_data()
         self.setup_mario()
@@ -90,6 +92,43 @@ class CustomLevel(tools._State):
         self.pipe_world_image = pg.transform.scale(
             pipe_comp,
             (self.pipe_world_width, self.pipe_world_height))
+
+        self.ground_tile_image = self.get_image(sprite_sheet, 0, 16, 16, 16)
+        self.castle_image = self.get_castle_image()
+
+
+    def get_image(self, sprite_sheet, x, y, width, height):
+        """Extract and scale a tile-sized image from a sprite sheet."""
+        image = pg.Surface([width, height]).convert()
+        image.blit(sprite_sheet, (0, 0), (x, y, width, height))
+        image.set_colorkey(c.BLACK)
+        return pg.transform.scale(image, (self.tile_size, self.tile_size))
+
+
+    def get_castle_image(self):
+        """Extract the 1-1 castle from the background for custom levels."""
+        castle = pg.Surface((112, 160)).convert()
+        level_1 = setup.GFX['level_1']
+        castle.blit(level_1, (0, 0), (3208, 40, 112, 160))
+        castle.set_colorkey(level_1.get_at((0, 0)))
+        rect = castle.get_rect()
+        return pg.transform.scale(
+            castle,
+            (int(rect.width * c.BACKGROUND_MULTIPLER),
+             int(rect.height * c.BACKGROUND_MULTIPLER)))
+
+
+    def find_flag_tile(self):
+        """Find the editor-placed flagpole anchor, if this map has one."""
+        self.flag_tile = None
+        if self.level_data is None:
+            return
+
+        for y, row in enumerate(self.level_data):
+            for x, tile_type in enumerate(row):
+                if tile_type == c.TILE_FLAG:
+                    self.flag_tile = (x, y)
+                    return
     
     def load_level(self):
         """Load level data from JSON file"""
@@ -104,8 +143,10 @@ class CustomLevel(tools._State):
     def setup_background(self):
         """Sets the background image, rect and scales it to the correct
         proportions"""
-        # Calculate level width based on grid
-        level_width = self.grid_width * self.tile_size
+        # Calculate level width based on grid, extending at runtime for the
+        # automatically generated castle after the flagpole.
+        level_width = max(self.grid_width * self.tile_size,
+                          self.get_runtime_level_width())
         level_height = c.SCREEN_HEIGHT
         
         # Create a simple sky blue background
@@ -118,6 +159,17 @@ class CustomLevel(tools._State):
         
         self.viewport = setup.SCREEN.get_rect(bottom=self.level_rect.bottom)
         self.viewport.x = self.game_info.get(c.CAMERA_START_X, 0)
+
+
+    def get_runtime_level_width(self):
+        """Return the width needed for the generated end-of-level scene."""
+        if self.flag_tile is None:
+            return self.grid_width * self.tile_size
+
+        flag_world_x = self.flag_tile[0] * self.tile_size
+        pole_x = flag_world_x + (self.tile_size - 2)
+        castle_x = pole_x + 90
+        return castle_x + self.castle_image.get_width() + 220
     
     def setup_groups(self):
         """Initialize sprite groups"""
@@ -133,7 +185,9 @@ class CustomLevel(tools._State):
         self.flag_pole_group = pg.sprite.Group()
         self.check_point_group = pg.sprite.Group()
         self.static_coin_group = pg.sprite.Group()
-        self.level_complete = False
+        self.castle_rect = None
+        self.castle_flag_added = False
+        self.end_sequence_timer = 0
     
     def setup_level_from_data(self):
         """Create game objects from level data"""
@@ -238,6 +292,19 @@ class CustomLevel(tools._State):
         # Keep checkpoint aligned to actual pole x position.
         flag_check = checkpoint.Checkpoint(pole_x - 1, '11', 5, 6)
         self.check_point_group.add(flag_check)
+        self.setup_castle_end(tile_world_y, pole_x)
+
+
+    def setup_castle_end(self, tile_world_y, pole_x):
+        """Create the runtime-only castle and optional doorway trigger."""
+        ground_top = tile_world_y + self.tile_size
+        castle_x = pole_x + 90
+        castle_y = ground_top - self.castle_image.get_height()
+        self.castle_rect = self.castle_image.get_rect(topleft=(castle_x, castle_y))
+
+        door_x = castle_x + 180
+        castle_check = checkpoint.Checkpoint(door_x, '12', 0, 10, c.SCREEN_HEIGHT)
+        self.check_point_group.add(castle_check)
     
     def setup_mario(self):
         """Places Mario at the beginning of the level"""
@@ -293,6 +360,7 @@ class CustomLevel(tools._State):
         self.check_if_mario_in_transition_state()
         self.check_flag()
         self.check_for_mario_death()
+        self.check_auto_finish_after_flag()
         self.overhead_info_display.update(self.game_info, self.mario)
     
     def check_if_mario_in_transition_state(self):
@@ -325,6 +393,7 @@ class CustomLevel(tools._State):
         self.check_if_mario_in_transition_state()
         self.check_for_mario_death()
         self.update_viewport()
+        self.check_auto_finish_after_flag()
         self.overhead_info_display.update(self.game_info, self.mario)
     
     def check_points_check(self):
@@ -342,8 +411,10 @@ class CustomLevel(tools._State):
                     self.mario.rect.bottom = self.flag.rect.y
                 self.flag.state = c.SLIDE_DOWN
                 self.create_flag_points()
-                self.level_complete = True
-                self.flag_timer = self.current_time
+                self.end_sequence_timer = self.current_time
+
+            elif checkpoint_hit.name == '12':
+                self.start_castle_countdown()
     
     def create_flag_points(self):
         """Creates the points that appear when Mario touches the flag pole"""
@@ -467,7 +538,9 @@ class CustomLevel(tools._State):
         if self.mario.y_vel > 0:
             self.mario.rect.bottom = collider_obj.rect.top
             self.mario.y_vel = 0
-            if self.mario.state != c.FLAGPOLE:
+            if self.mario.state in (c.END_OF_LEVEL_FALL, c.WALKING_TO_CASTLE):
+                self.mario.state = c.WALKING_TO_CASTLE
+            elif self.mario.state != c.FLAGPOLE:
                 self.mario.state = c.WALK
         else:
             self.mario.rect.top = collider_obj.rect.bottom
@@ -995,17 +1068,44 @@ class CustomLevel(tools._State):
     
     def check_flag(self):
         """Check if Mario has reached the flag"""
-        if self.mario.state == c.FLAGPOLE:
-            if self.mario.rect.bottom >= c.GROUND_HEIGHT:
-                self.mario.state = c.WALKING_TO_CASTLE
+        if not hasattr(self, 'flag'):
+            return
 
-        if self.level_complete and self.flag_timer:
-            if (self.current_time - self.flag_timer) > 1200:
-                self.exit_to_return_state()
+        if (self.flag.state == c.BOTTOM_OF_POLE
+            and self.mario.state == c.FLAGPOLE):
+            self.mario.set_state_to_bottom_of_pole()
+
+
+    def check_auto_finish_after_flag(self):
+        """Finish the ending scene even if Mario gets stuck before the castle."""
+        if self.mario.state not in (c.FLAGPOLE, c.BOTTOM_OF_POLE,
+                                    c.WALKING_TO_CASTLE,
+                                    c.END_OF_LEVEL_FALL):
+            return
+
+        if self.end_sequence_timer == 0:
+            self.end_sequence_timer = self.current_time
+        elif (self.current_time - self.end_sequence_timer) > 3500:
+            self.start_castle_countdown()
+
+
+    def start_castle_countdown(self):
+        """Move from the auto-walk scene into the 1-1 style time tally."""
+        if self.state == c.IN_CASTLE or self.mario.in_castle:
+            return
+
+        self.state = c.IN_CASTLE
+        self.mario.kill()
+        self.mario.state = c.STAND
+        self.mario.in_castle = True
+        self.overhead_info_display.state = c.FAST_COUNT_DOWN
     
     def check_for_mario_death(self):
         """Check if Mario has died"""
-        if self.mario.rect.top > c.SCREEN_HEIGHT:
+        if (self.mario.rect.top > c.SCREEN_HEIGHT
+            and not self.mario.in_castle
+            and self.mario.state not in (c.WALKING_TO_CASTLE,
+                                         c.END_OF_LEVEL_FALL)):
             self.mario.dead = True
             self.game_info[c.MARIO_DEAD] = True
         
@@ -1025,25 +1125,49 @@ class CustomLevel(tools._State):
     
     def check_if_time_out(self):
         """Check if time has run out"""
-        if self.overhead_info_display.time <= 0:
+        if (self.overhead_info_display.time <= 0
+            and not self.mario.dead
+            and not self.mario.in_castle
+            and self.mario.state not in (c.WALKING_TO_CASTLE,
+                                         c.END_OF_LEVEL_FALL)):
             self.mario.start_death_jump(self.game_info)
             self.state = c.FROZEN
     
     def update_while_in_castle(self):
         """Updates when Mario is in the castle"""
+        for score_obj in self.moving_score_list:
+            score_obj.update(self.moving_score_list, self.game_info)
         self.overhead_info_display.update(self.game_info, self.mario)
         if self.overhead_info_display.state == c.END_OF_LEVEL:
-            self.exit_to_return_state()
+            self.state = c.FLAG_AND_FIREWORKS
+            if self.castle_rect and not self.castle_flag_added:
+                self.flag_pole_group.add(castle_flag.Flag(
+                    self.castle_rect.x + 150,
+                    self.castle_rect.y + 215))
+                self.castle_flag_added = True
     
     def update_flag_and_fireworks(self):
         """Updates during flag and fireworks"""
+        for score_obj in self.moving_score_list:
+            score_obj.update(self.moving_score_list, self.game_info)
         self.overhead_info_display.update(self.game_info, self.mario)
+        self.flag_pole_group.update()
+        self.end_game()
+
+
+    def end_game(self):
+        """Finish custom level after the castle flag animation."""
+        if self.flag_timer == 0:
+            self.flag_timer = self.current_time
+        elif (self.current_time - self.flag_timer) > 2000:
+            self.exit_to_return_state()
     
     def blit_everything(self, surface):
         """Blit all sprites to the screen"""
         # Mirror Level1 rendering flow: draw world to level surface, then crop by viewport.
         self.level.blit(self.background, self.viewport, self.viewport)
         self.draw_ground_tiles(self.level)
+        self.draw_castle(self.level)
 
         # Keep draw order aligned with 1-1 so reveal animation is masked by the box.
         self.powerup_group.draw(self.level)
@@ -1065,7 +1189,13 @@ class CustomLevel(tools._State):
             self.flag_score.draw(surface)
 
         self.overhead_info_display.draw(surface)
-    
+
+
+    def draw_castle(self, surface):
+        """Draw the generated castle behind the ending sprites."""
+        if self.castle_rect:
+            surface.blit(self.castle_image, self.castle_rect)
+
     def draw_ground_tiles(self, surface):
         """Draw visible ground tiles"""
         if self.level_data is None:

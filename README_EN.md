@@ -2,12 +2,16 @@
 
 A Mario project built by https://github.com/TobyfoxpurePython/-python, supporting two main play modes.
 
+## Release Download
+
+You can download the game from the [Release page](https://github.com/fjw345/Super-mario-creater-for-PC/releases). See [RELEASE_v1.0.md](RELEASE_v1.0.md) for v1.0 details.
+
 ## How to Run
 
 1. Install Python 3.10+
 2. Install dependencies
 
-	pip install pygame-ce
+	pip install -r requirements.txt
 
 3. Launch the game
 
