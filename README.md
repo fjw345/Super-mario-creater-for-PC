@@ -4,12 +4,16 @@
 
 基于用户TobyFoxpurePython的supermario1-1（https://github.com/TobyfoxpurePython/-python ）制作的马里奥项目：
 
+## Release 下载
+
+可在 [Release 界面](https://github.com/fjw345/Super-mario-creater-for-PC/releases) 下载游戏。详细版本信息见 [RELEASE_v1.0.md](RELEASE_v1.0.md)。
+
 ## 运行方式
 
 1. 安装 Python 3.10+
 2. 安装依赖
 
-	pip install pygame-ce
+	pip install -r requirements.txt
 
 3. 启动游戏
 
