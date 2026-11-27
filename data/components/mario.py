@@ -73,6 +73,7 @@ class Mario(pg.sprite.Sprite):
         self.fire_transition_index = 0
         self.fireball_count = 0
         self.flag_pole_right = 0
+        self.flag_pole_ground = c.GROUND_HEIGHT
 
 
     def load_images_from_sheet(self):
@@ -959,7 +960,7 @@ class Mario(pg.sprite.Sprite):
 
         if self.flag_pole_timer == 0:
             self.flag_pole_timer = self.current_time
-        elif self.rect.bottom < 493:
+        elif self.rect.bottom < self.flag_pole_ground - 45:
             if (self.current_time - self.flag_pole_timer) < 65:
                 self.image = self.right_frames[9]
             elif (self.current_time - self.flag_pole_timer) < 130:
@@ -971,10 +972,10 @@ class Mario(pg.sprite.Sprite):
             self.y_vel = 5
             self.rect.y += self.y_vel
 
-            if self.rect.bottom >= 488:
+            if self.rect.bottom >= self.flag_pole_ground - 50:
                 self.flag_pole_timer = self.current_time
 
-        elif self.rect.bottom >= 493:
+        elif self.rect.bottom >= self.flag_pole_ground - 45:
             self.image = self.right_frames[10]
 
 
@@ -987,7 +988,7 @@ class Mario(pg.sprite.Sprite):
             self.image = self.left_frames[10]
         else:
             self.in_transition_state = False
-            if self.rect.bottom < 485:
+            if self.rect.bottom < self.flag_pole_ground - 53:
                 self.state = c.END_OF_LEVEL_FALL
             else:
                 self.state = c.WALKING_TO_CASTLE

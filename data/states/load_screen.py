@@ -24,6 +24,8 @@ class LoadScreen(tools._State):
 
     def set_next_state(self):
         """Sets the next state"""
+        if self.persist.get('resume_custom_level'):
+            return c.CUSTOM_LEVEL
         return c.LEVEL1
 
     def set_overhead_info_state(self):

@@ -15,6 +15,8 @@ class Flag(pg.sprite.Sprite):
         self.rect.right = x
         self.rect.y = y
         self.state = c.TOP_OF_POLE
+        # Bottom of the pole; 1-1 stands on the ground.
+        self.ground_y = c.GROUND_HEIGHT
 
 
     def setup_images(self):
@@ -58,7 +60,7 @@ class Flag(pg.sprite.Sprite):
         self.y_vel = 5
         self.rect.y += self.y_vel
 
-        if self.rect.bottom >= 485:
+        if self.rect.bottom >= self.ground_y - 53:
             self.state = c.BOTTOM_OF_POLE
 
 

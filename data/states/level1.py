@@ -452,7 +452,7 @@ class Level1(tools._State):
             elif checkpoint.name == '12':
                 self.state = c.IN_CASTLE
                 self.mario.kill()
-                self.mario.state == c.STAND
+                self.mario.state = c.STAND
                 self.mario.in_castle = True
                 self.overhead_info_display.state = c.FAST_COUNT_DOWN
 
@@ -564,6 +564,7 @@ class Level1(tools._State):
 
         elif powerup:
             if powerup.name == c.STAR:
+                setup.SFX['powerup'].play()
                 self.game_info[c.SCORE] += 1000
 
                 self.moving_score_list.append(
@@ -578,10 +579,11 @@ class Level1(tools._State):
                     score.Score(self.mario.rect.centerx - self.viewport.x,
                                 self.mario.rect.y - 20, 1000))
 
-                self.mario.y_vel = -1
-                self.mario.state = c.SMALL_TO_BIG
-                self.mario.in_transition_state = True
-                self.convert_mushrooms_to_fireflowers()
+                if not self.mario.big:
+                    self.mario.y_vel = -1
+                    self.mario.state = c.SMALL_TO_BIG
+                    self.mario.in_transition_state = True
+                    self.convert_mushrooms_to_fireflowers()
             elif powerup.name == c.LIFE_MUSHROOM:
                 self.moving_score_list.append(
                     score.Score(powerup.rect.right - self.viewport.x,
@@ -715,6 +717,10 @@ class Level1(tools._State):
         elif powerup:
             if powerup.name == c.STAR:
                 setup.SFX['powerup'].play()
+                self.game_info[c.SCORE] += 1000
+                self.moving_score_list.append(
+                    score.Score(self.mario.rect.centerx - self.viewport.x,
+                                self.mario.rect.y, 1000))
                 powerup.kill()
                 self.mario.invincible = True
                 self.mario.invincible_start_timer = self.current_time
