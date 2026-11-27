@@ -19,9 +19,10 @@ from .. components import score
 from .. components import castle_flag
 from .. components import coin
 from .. components import powerups
+from .level_common import LevelCommon
 
 
-class CustomLevel(tools._State):
+class CustomLevel(LevelCommon, tools._State):
     """State for playing custom levels created in the level editor"""
     
     def __init__(self):
@@ -604,26 +605,6 @@ class CustomLevel(tools._State):
 
             if powerup.name != c.FIREBALL:
                 powerup.kill()
-
-
-    def convert_mushrooms_to_fireflowers(self):
-        """When Mario becomes big, upgrade box rewards become fireflowers."""
-        for brick in self.brick_group:
-            if brick.contents == c.MUSHROOM:
-                brick.contents = c.FIREFLOWER
-        for coin_box in self.coin_box_group:
-            if coin_box.contents == c.MUSHROOM:
-                coin_box.contents = c.FIREFLOWER
-
-
-    def convert_fireflowers_to_mushrooms(self):
-        """When Mario becomes small, upgrade box rewards become mushrooms."""
-        for brick in self.brick_group:
-            if brick.contents == c.FIREFLOWER:
-                brick.contents = c.MUSHROOM
-        for coin_box in self.coin_box_group:
-            if coin_box.contents == c.FIREFLOWER:
-                coin_box.contents = c.MUSHROOM
 
 
     def adjust_mario_for_x_collisions(self, collider):
@@ -1226,87 +1207,6 @@ class CustomLevel(tools._State):
             star.start_bounce(-8)
 
 
-    def adjust_fireball_position(self, fireball):
-        """Moves fireball along the x, y axes and checks for collisions"""
-        if fireball.state == c.FLYING:
-            fireball.rect.x += fireball.x_vel
-            self.check_fireball_x_collisions(fireball)
-            fireball.rect.y += fireball.y_vel
-            self.check_fireball_y_collisions(fireball)
-        elif fireball.state == c.BOUNCING:
-            fireball.rect.x += fireball.x_vel
-            self.check_fireball_x_collisions(fireball)
-            fireball.rect.y += fireball.y_vel
-            self.check_fireball_y_collisions(fireball)
-            fireball.y_vel += fireball.gravity
-        self.delete_if_off_screen(fireball)
-
-
-    def bounce_fireball(self, fireball):
-        """Simulates fireball bounce off ground"""
-        fireball.y_vel = -8
-        if fireball.direction == c.RIGHT:
-            fireball.x_vel = 15
-        else:
-            fireball.x_vel = -15
-
-        if fireball in self.powerup_group:
-            fireball.state = c.BOUNCING
-
-
-    def check_fireball_x_collisions(self, fireball):
-        """Fireball collisions along x axis"""
-        collide_group = pg.sprite.Group(self.ground_group,
-                                        self.pipe_group,
-                                        self.step_group,
-                                        self.coin_box_group,
-                                        self.brick_group)
-
-        collider = pg.sprite.spritecollideany(fireball, collide_group)
-
-        if collider:
-            fireball.kill()
-            self.sprites_about_to_die_group.add(fireball)
-            fireball.explode_transition()
-
-
-    def check_fireball_y_collisions(self, fireball):
-        """Fireball collisions along y axis"""
-        collide_group = pg.sprite.Group(self.ground_group,
-                                        self.pipe_group,
-                                        self.step_group,
-                                        self.coin_box_group,
-                                        self.brick_group)
-
-        collider = pg.sprite.spritecollideany(fireball, collide_group)
-        enemy = pg.sprite.spritecollideany(fireball, self.enemy_group)
-        shell = pg.sprite.spritecollideany(fireball, self.shell_group)
-
-        if collider and (fireball in self.powerup_group):
-            fireball.rect.bottom = collider.rect.y
-            self.bounce_fireball(fireball)
-
-        elif enemy:
-            self.fireball_kill(fireball, enemy)
-
-        elif shell:
-            self.fireball_kill(fireball, shell)
-
-
-    def fireball_kill(self, fireball, enemy):
-        """Kills enemy if hit with fireball"""
-        setup.SFX['kick'].play()
-        self.game_info[c.SCORE] += 100
-        self.moving_score_list.append(
-            score.Score(enemy.rect.centerx - self.viewport.x,
-                        enemy.rect.y, 100))
-        fireball.kill()
-        enemy.kill()
-        self.sprites_about_to_die_group.add(enemy, fireball)
-        enemy.start_death_jump(fireball.direction)
-        fireball.explode_transition()
-
-
     def check_if_falling(self, sprite, sprite_group):
         """Checks if sprite should enter a falling state"""
         sprite.rect.y += 1
@@ -1316,20 +1216,6 @@ class CustomLevel(tools._State):
                 sprite.state = c.FALL
 
         sprite.rect.y -= 1
-
-
-    def delete_if_off_screen(self, enemy):
-        """Removes enemy from sprite groups if 300 pixels left off the screen,
-        underneath the bottom of the screen, or right of the screen if shell"""
-        if enemy.rect.x < (self.viewport.x - 300):
-            enemy.kill()
-
-        elif enemy.rect.y > (self.viewport.bottom):
-            enemy.kill()
-
-        elif enemy.state == c.SHELL_SLIDE:
-            if enemy.rect.x > (self.viewport.right + 500):
-                enemy.kill()
 
 
     def update_viewport(self):
