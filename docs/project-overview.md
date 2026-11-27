@@ -11,9 +11,10 @@ Super Mario Creater for PC 是基于 Python 和 Pygame CE 的桌面游戏，包�
 | [data/states/](../data/states/) | 主菜单、加载等过场界面、经典关卡、编辑器、关卡列表和自定义关卡运行逻辑。 |
 | [data/components/](../data/components/)、[data/game_sound.py](../data/game_sound.py) | Mario、敌人、道具、砖块等精灵，以及 HUD、计分和游戏音效。 |
 | [data/constants.py](../data/constants.py) | 状态名、游戏参数、语言标识、存档使用的方块 ID，以及编辑器网格常量 `TILE_SIZE`、`EDITOR_TOP`、`GRID_HEIGHT`。 |
+| [data/states/level_common.py](../data/states/level_common.py) | `Level1` 和 `CustomLevel` 共用的玩法：Mario 的碰撞、敌人和龟壳、蘑菇和星星、火球、旗杆计分。 |
 | [data/storage.py](../data/storage.py) | 存档目录、列出、加载校验、原子保存、删除和旧存档迁移，不依赖 pygame。 |
 | [data/tiles.py](../data/tiles.py) | 编辑器方块表：槽位顺序、中英文名称、图标和锚点。 |
-| [tests/](../tests/)、[scripts/smoke.py](../scripts/smoke.py) | 存档模块的 pytest 测试，以及无窗口的冒烟和行为检查。 |
+| [tests/](../tests/)、[scripts/smoke.py](../scripts/smoke.py)、[scripts/trace.py](../scripts/trace.py) | 存档模块的 pytest 测试，无窗口的冒烟和行为检查，以及逐帧追踪（修改共用玩法前后用它比较）。 |
 | [resources/](../resources/)、[levels/](../levels/)、[custom_levels/](../custom_levels/) | 游戏素材、仓库内的关卡 JSON 和玩家创建的关卡目录。 |
 | [mario_open.spec](../mario_open.spec)、[RELEASE_v1.0.md](../RELEASE_v1.0.md) | PyInstaller 打包配置和 v1.0 发布说明。 |
 
@@ -31,7 +32,7 @@ Super Mario Creater for PC 是基于 Python 和 Pygame CE 的桌面游戏，包�
 | 问题 | 状态 |
 | --- | --- |
 | 1 存档逻辑分散 | 已解决，见 `data/storage.py`。 |
-| 2 两种关卡重复实现玩法 | 自定义关卡已对齐 1-1（P1），共用代码尚未抽取（P2）。 |
+| 2 两种关卡重复实现玩法 | 已解决。自定义关卡对齐 1-1（P1），共用玩法在 `data/states/level_common.py`（P2）。 |
 | 3 编辑器的方块信息分散 | 已解决，方块表在 `data/tiles.py`（P3）。 |
 | 4 发布产物和说明需要对齐 | 已移出跟踪并更新说明，v1.0.1 尚未发布。 |
 

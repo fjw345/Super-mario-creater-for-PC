@@ -20,13 +20,26 @@
 | P0 存档模块、加载校验、发布产物与说明 | 已完成 | `bd4eb13` | 手动验证清单（打包、迁移、删除、编辑器往返）已由用户确认。 |
 | P1 自定义关卡对齐 1-1 | 已完成，待人工手感对比 | `7dc7866` | 下表所有条目都已实现。headless 检查通过，没有在窗口里逐项对照 1-1 的手感。 |
 | P3 集中编辑器方块配置 | 已完成 | `a0904c3` | 编辑器画面与修改前逐像素一致，现有关卡和内置示例都能加载。 |
-| P2 抽取共用玩法 | 未开始 | 无 | 按本文顺序分 6 步，每步单独提交和验证。 |
+| P2 抽取共用玩法 | 已完成 | `3832dd8` 到 `2a75c43` | 6 步已按顺序完成，共用代码在 `data/states/level_common.py`。每步都用 `scripts/trace.py` 证明两种关卡的逐帧状态与抽取前一致。 |
 
 ### 与方案不同的地方
 
 - **敌人被砖块和问号砖侧向阻挡。** P1 按 `level1.py` 让敌人 x 方向只检测地面、台阶和管道。自定义关卡可以把砖块放在行走高度，敌人因此爬到高一格的方块上。`custom_level.py` 的 `check_enemy_x_collisions` 现在把砖块和问号砖也算作阻挡。这是自定义关卡与 1-1 的有意差异，原因是 1-1 的地图里没有这种布局。P2 抽取敌人碰撞时必须保留这一点。
 - **死亡后重开靠 `resume_custom_level` 标记。** 死亡时 `CustomLevel` 在 `persist` 中写入这个标记，加载界面读到后把下一状态设为 `CUSTOM_LEVEL`。标记在 `CustomLevel.startup` 中清除。
 - **旗杆高度写入 Mario 和旗子。** `Mario.flag_pole_ground`、`Flag.ground_y` 默认取 `c.GROUND_HEIGHT`，自定义关卡按旗杆底部设置。1-1 的数值不变。
+
+- **龟壳撞砖块。** 1-1 的龟壳原本不检测砖块和问号砖，会穿过去。现在滑行的龟壳撞到普通砖块会回弹并打碎砖块，撞到带内容的砖块或问号砖只回弹。这个改动在 1-1 和自定义关卡中同时生效，代码在 `LevelCommon.check_shell_x_collisions` 和 `break_brick`。
+- **旗杆计分接口。** `create_flag_points(x, ground_y)` 接收旗杆位置和底部高度，1-1 传入固定值，自定义关卡传入实际旗杆位置。
+
+### P2 之后各类保留的内容
+
+- `Level1`：地图初始化、检查点和敌人生成、秘密蘑菇、1-1 的通关流程。
+- `CustomLevel`：JSON 地图加载、`TILE_CREATORS`、城堡生成、敌人进入镜头才激活、返回编辑器的流程。
+- 仍然各自定义、行为不同的方法：`startup`、`update`、`check_points_check`、`check_enemy_x_collisions`（自定义关卡的砖块侧向阻挡）、`check_for_mario_death`、`set_game_info_values`、`blit_everything`、`update_viewport` 的边界处理，以及旗杆后的更新和结束流程。这些差异是有意保留的，见上面的说明。
+
+### 验证工具补充
+
+- `scripts/trace.py`：用脚本输入在 1-1 和自定义关卡里各跑 9 组场景，覆盖小个子、大个子、火焰形态、顶砖、碎砖、击杀、龟壳、火球、掉坑和过旗杆。`record` 写入基准，`compare` 逐帧比较。以后再改共用玩法，先录基准，改完再比较。
 
 ### 尚未完成
 
