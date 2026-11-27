@@ -1047,9 +1047,28 @@ class Level1(tools._State):
             self.delete_if_off_screen(shell)
 
 
+    def break_brick(self, brick):
+        """Smash a brick into four pieces (used by sliding shells)."""
+        setup.SFX['brick_smash'].play()
+        self.check_if_enemy_on_brick(brick)
+        brick.kill()
+        self.brick_pieces_group.add(
+            bricks.BrickPiece(brick.rect.x,
+                              brick.rect.y - (brick.rect.height/2), -2, -12),
+            bricks.BrickPiece(brick.rect.right,
+                              brick.rect.y - (brick.rect.height/2), 2, -12),
+            bricks.BrickPiece(brick.rect.x, brick.rect.y, -2, -6),
+            bricks.BrickPiece(brick.rect.right, brick.rect.y, 2, -6))
+
+
     def check_shell_x_collisions(self, shell):
         """Shell collisions along the x axis"""
         collider = pg.sprite.spritecollideany(shell, self.ground_step_pipe_group)
+        block = None
+        if shell.x_vel != 0:
+            block = pg.sprite.spritecollideany(shell, self.brick_group)
+            if not block:
+                block = pg.sprite.spritecollideany(shell, self.coin_box_group)
         enemy = pg.sprite.spritecollideany(shell, self.enemy_group)
 
         if collider:
@@ -1060,6 +1079,20 @@ class Level1(tools._State):
             else:
                 shell.direction = c.RIGHT
                 shell.rect.left = collider.rect.right
+
+        elif block:
+            # A sliding shell bounces off blocks. Plain bricks break;
+            # bricks with contents and question boxes stay intact.
+            if shell.x_vel > 0:
+                shell.direction = c.LEFT
+                shell.rect.right = block.rect.left
+            else:
+                shell.direction = c.RIGHT
+                shell.rect.left = block.rect.right
+            if block in self.brick_group and block.contents is None                     and block.state == c.RESTING:
+                self.break_brick(block)
+            else:
+                setup.SFX['bump'].play()
 
         if enemy:
             setup.SFX['kick'].play()
