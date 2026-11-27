@@ -11,7 +11,6 @@
 | 系统 | 架构 | 下载链接 | 使用方式 |
 |---|---|---|---|
 | Windows | x64 | [Super-Mario-Creater-v1.0-windows-x64.zip](https://github.com/fjw345/Super-mario-creater-for-PC/releases/download/v1.0/Super-Mario-Creater-v1.0-windows-x64.zip) | 解压后运行 `Super Mario Creater.exe` |
-| macOS | Apple Silicon / Intel | [Super-Mario-Creater-v1.0-macos-universal.dmg](https://github.com/fjw345/Super-mario-creater-for-PC/releases/download/v1.0/Super-Mario-Creater-v1.0-macos-universal.dmg) | 打开 DMG 后将应用拖入 Applications |
 
 备用入口：[GitHub v1.0 Release 页面](https://github.com/fjw345/Super-mario-creater-for-PC/releases/tag/v1.0)
 
@@ -65,8 +64,11 @@ python mario_open.py
 ## 已知说明
 
 - Windows 首次运行可能会出现安全提示，请选择“仍要运行”。
-- macOS 首次运行如遇到 Gatekeeper 阻止，可右键应用并选择“打开”。
-- 自定义关卡文件保存在 `custom_levels` 目录中。
+- 当前只提供 Windows 版本，暂无 macOS 安装包。
+- 存档位置：源码运行时为仓库内的 `custom_levels/`；打包版为 `%APPDATA%\SuperMarioCreater\custom_levels`，替换程序目录不会影响存档。
+- 旧版（`_internal/custom_levels/` 或 EXE 同级 `custom_levels/`）的关卡会在新版首次启动时复制到新位置，旧文件不会被删除。
+- EXE 名称以最终发布附件为准，当前构建产物为 `Super Mario Creater.exe`。
+- `levels/custom_level.json` 作为只读示例关卡显示在关卡列表中。
 
 ## 反馈
 

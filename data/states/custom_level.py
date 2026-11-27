@@ -3,9 +3,8 @@
 from __future__ import division
 
 import pygame as pg
-import json
 import os
-from .. import setup, tools
+from .. import setup, tools, storage
 from .. import constants as c
 from .. import game_sound
 from .. components import mario
@@ -53,10 +52,16 @@ class CustomLevel(tools._State):
         self.grid_height = 13
         self.flag_tile = None
         
-        if self.level_path and os.path.exists(self.level_path):
+        self.load_error = None
+        self.level_data = None
+        self.grid_width = 50
+        try:
+            if not self.level_path:
+                raise storage.LevelLoadError('no level path')
             self.load_level()
-        else:
-            # Default empty level
+        except storage.LevelLoadError as exc:
+            # Leave on the first frame and report the error to the caller.
+            self.load_error = str(exc)
             self.level_data = None
             self.grid_width = 50
         
@@ -132,13 +137,15 @@ class CustomLevel(tools._State):
     
     def load_level(self):
         """Load level data from JSON file"""
-        with open(self.level_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
-        self.level_data = data.get('tiles', None)
-        self.grid_width = data.get('width', 50)
-        self.grid_height = data.get('height', 13)
-        self.tile_size = data.get('tile_size', 43)
+        data = storage.load_level(self.level_path)
+
+        self.level_data = data['tiles']
+        self.grid_width = data['width']
+        self.grid_height = data['height']
+        self.tile_size = data['tile_size']
+        if data['unknown_tiles']:
+            print('Level %s: %d unknown tile(s) treated as empty'
+                  % (self.level_path, data['unknown_tiles']))
     
     def setup_background(self):
         """Sets the background image, rect and scales it to the correct
@@ -326,6 +333,10 @@ class CustomLevel(tools._State):
     
     def update(self, surface, keys, current_time):
         """Updates Entire level using states. Called by the control object"""
+        if self.load_error:
+            self.game_info['level_error'] = self.load_error
+            self.exit_to_return_state()
+            return
         if keys[pg.K_ESCAPE]:
             self.exit_to_return_state()
             return

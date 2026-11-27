@@ -76,7 +76,8 @@
 
 - 关卡中必须包含旗杆，才允许保存
 - 保存文件后缀由程序自动添加为 .json
-- 关卡统一保存到 custom_levels 目录
+- 源码运行时保存到仓库内的 custom_levels/ 目录；打包版保存到 %APPDATA%\SuperMarioCreater\custom_levels
+- 同名保存会提示“已存在”，再按 Enter 才会覆盖
 
 ## 关卡编辑器方块清单
 

@@ -74,7 +74,7 @@ You can download the game from the [Release page](https://github.com/fjw345/Supe
 
 - The level must contain a flagpole before it can be saved.
 - The file extension `.json` is added automatically by the program.
-- All custom levels are saved in the `custom_levels` directory.
+- Running from source saves levels in the repository's `custom_levels/` directory. The packaged build saves them in `%APPDATA%\SuperMarioCreater\custom_levels`.
 
 ## Level Editor Tile List
 

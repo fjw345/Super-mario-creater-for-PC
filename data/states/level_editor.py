@@ -3,7 +3,7 @@
 import pygame as pg
 import json
 import os
-from .. import setup, tools
+from .. import setup, tools, storage
 from .. import constants as c
 from .. components import mario
 
@@ -64,7 +64,9 @@ class LevelEditor(tools._State):
         self.naming_mode = False
         self.name_input = ""
         self.name_error = ""
-        self.ui_message = ""
+        err = self.persist.pop('level_error', None)
+        self.ui_message = self.tr(f'关卡无法加载: {err}',
+                                  f'Level failed to load: {err}') if err else ""
         self.show_help_panel = True
         self.help_panel_width = 290
         self.level_name = "custom_level"
@@ -79,11 +81,8 @@ class LevelEditor(tools._State):
         self.spawn_world_bottom = c.GROUND_HEIGHT
         self.spawn_mario_preview = mario.Mario()
         
-        # Ensure custom levels directory exists
-        self.levels_dir = os.path.join(os.path.dirname(os.path.dirname(
-            os.path.dirname(__file__))), 'custom_levels')
-        if not os.path.exists(self.levels_dir):
-            os.makedirs(self.levels_dir)
+        self.overwrite_pending = None
+        self.levels_dir = storage.levels_dir()
 
 
     def reset_level_data(self):
@@ -319,10 +318,12 @@ class LevelEditor(tools._State):
             elif event.key == pg.K_BACKSPACE:
                 self.name_input = self.name_input[:-1]
                 self.name_error = ""
+                self.overwrite_pending = None
         elif event.type == pg.TEXTINPUT:
             if len(self.name_input) < 32:
                 self.name_input += event.text
                 self.name_error = ""
+                self.overwrite_pending = None
     
     def handle_input(self, keys):
         """Handle keyboard input"""
@@ -807,11 +808,18 @@ class LevelEditor(tools._State):
         surface.blit(suffix_text, (input_bg.right - 70, input_bg.y + 10))
 
         hint = self.small_font.render(
-            self.tr("Enter确认保存 | Esc取消 | 自动保存到 custom_levels",
-                    "Enter Save | Esc Cancel | Saved to custom_levels"),
+            self.tr("Enter确认保存 | Esc取消", "Enter Save | Esc Cancel"),
             True,
             c.WHITE)
-        surface.blit(hint, (panel_x + 20, panel_y + 135))
+        surface.blit(hint, (panel_x + 20, panel_y + 125))
+
+        dir_text = self.small_font.render(
+            self.tr("保存到: ", "Saved to: ") + self.levels_dir, True, c.GRAY)
+        if dir_text.get_width() > panel_w - 40:
+            dir_text = dir_text.subsurface(
+                (dir_text.get_width() - (panel_w - 40), 0,
+                 panel_w - 40, dir_text.get_height()))
+        surface.blit(dir_text, (panel_x + 20, panel_y + 150))
 
         if self.name_error:
             err = self.small_font.render(self.name_error, True, c.RED)
@@ -851,15 +859,13 @@ class LevelEditor(tools._State):
     
     def sanitize_level_name(self, raw_name):
         """Return a safe file name without extension."""
-        invalid_chars = '<>:"/\\|?*'
-        name = ''.join(ch for ch in raw_name if ch not in invalid_chars)
-        name = name.strip().strip('.')
-        return name[:32]
+        return storage.sanitize_name(raw_name)
 
 
     def start_naming_mode(self):
         """Enter save-as mode for Ctrl+S."""
         self.naming_mode = True
+        self.overwrite_pending = None
         self.name_input = self.level_name
         self.name_error = ""
         pg.key.start_text_input()
@@ -881,12 +887,21 @@ class LevelEditor(tools._State):
 
         safe_name = self.sanitize_level_name(self.name_input)
         if not safe_name:
-            self.name_error = self.tr("名称不能为空或包含非法字符", "Invalid or empty name")
+            self.name_error = self.tr("名称不能为空、非法或为系统保留名",
+                                      "Invalid, empty or reserved name")
+            return
+
+        if storage.level_exists(safe_name) and self.overwrite_pending != safe_name:
+            self.overwrite_pending = safe_name
+            self.name_error = self.tr("已存在，再按 Enter 覆盖",
+                                      "Already exists, press Enter again to overwrite")
             return
 
         save_path = self.save_level(safe_name)
         if save_path:
             self.cancel_naming_mode()
+        else:
+            self.name_error = self.ui_message
 
 
     def save_level(self, level_name=None):
@@ -899,19 +914,13 @@ class LevelEditor(tools._State):
         if level_name:
             self.level_name = level_name
 
-        level_data = {
-            'name': self.level_name,
-            'width': self.grid_width,
-            'height': self.grid_height,
-            'tile_size': self.tile_size,
-            'tiles': self.level_data
-        }
-        
-        filepath = os.path.join(self.levels_dir, f"{self.level_name}.json")
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(level_data, f, ensure_ascii=False)
-        
-        print(f"Level saved to {filepath}")
+        try:
+            filepath = storage.save_level(self.level_name, self.level_data)
+        except storage.LevelSaveError as exc:
+            self.ui_message = self.tr(f'保存失败: {exc}', f'Save failed: {exc}')
+            return None
+
+        self.overwrite_pending = None
         self.ui_message = self.tr(f'保存成功: {self.level_name}',
                                   f'Saved: {self.level_name}')
         self.has_unsaved_changes = False

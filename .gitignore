@@ -12,5 +12,10 @@ env/
 .DS_Store
 Thumbs.db
 
+# Build outputs (distribute via GitHub Release assets)
+build/
+dist/
+release_assets/
+
 # Runtime-generated custom levels
 custom_levels/*.json

@@ -3,7 +3,7 @@
 import pygame as pg
 import os
 import json
-from .. import setup, tools
+from .. import setup, tools, storage
 from .. import constants as c
 from .. components import info
 
@@ -62,31 +62,27 @@ class LevelSelect(tools._State):
     
     def load_level_list(self):
         """Load list of available custom levels"""
-        self.levels_dir = os.path.join(os.path.dirname(os.path.dirname(
-            os.path.dirname(__file__))), 'custom_levels')
-        
+        self.levels_dir = storage.levels_dir()
+
         self.level_files = []
         self.level_names = []
-        
-        if os.path.exists(self.levels_dir):
-            for filename in sorted(os.listdir(self.levels_dir)):
-                if filename.endswith('.json'):
-                    filepath = os.path.join(self.levels_dir, filename)
-                    self.level_files.append(filepath)
-                    
-                    # Try to get level name from file
-                    try:
-                        with open(filepath, 'r', encoding='utf-8') as f:
-                            data = json.load(f)
-                            name = data.get('name', filename[:-5])
-                    except Exception:
-                        name = filename[:-5]
-                    
-                    self.level_names.append(name)
-        
+        self.level_ok = []
+        self.level_builtin = []
+
+        for path, name, ok, builtin in storage.list_levels():
+            self.level_files.append(path)
+            self.level_names.append(name)
+            self.level_ok.append(ok)
+            self.level_builtin.append(builtin)
+
         # Add back option
         self.level_names.append('__BACK__')
         self.level_files.append(None)
+        self.level_ok.append(True)
+        self.level_builtin.append(False)
+        err = self.persist.pop('level_error', None)
+        self.message = self.tr(f'关卡无法加载: {err}',
+                               f'Level failed to load: {err}') if err else ''
     
     def setup_cursor(self):
         """Setup the cursor"""
@@ -180,6 +176,9 @@ class LevelSelect(tools._State):
         if selected_file is None:
             # Back to menu
             self.next = c.MAIN_MENU
+        elif not self.level_ok[self.cursor_index]:
+            self.message = self.tr('无法读取该关卡', 'Cannot read this level')
+            return
         else:
             # Load selected level
             self.persist['custom_level_path'] = selected_file
@@ -197,14 +196,21 @@ class LevelSelect(tools._State):
             self.delete_confirm_pending = False
             return
 
+        if self.level_builtin[self.cursor_index]:
+            self.delete_confirm_pending = False
+            self.message = self.tr('示例关卡不能删除',
+                                   'Example levels cannot be deleted')
+            return
+
         if not self.delete_confirm_pending:
             self.delete_confirm_pending = True
             return
 
         try:
-            if os.path.exists(selected_file):
-                os.remove(selected_file)
-        except OSError:
+            storage.delete_level(selected_file)
+        except (OSError, PermissionError):
+            self.delete_confirm_pending = False
+            self.message = self.tr('删除失败', 'Delete failed')
             return
 
         old_index = self.cursor_index
@@ -263,8 +269,13 @@ class LevelSelect(tools._State):
             surface.blit(text, (140, y))
 
             if i != len(self.level_names) - 1:
-                file_base = os.path.basename(self.level_files[i])
-                small = self.small_font.render(file_base, True, c.GRAY)
+                if self.level_builtin[i]:
+                    label = self.tr('示例', 'Example')
+                elif not self.level_ok[i]:
+                    label = self.tr('无法读取', 'Unreadable')
+                else:
+                    label = os.path.basename(self.level_files[i])
+                small = self.small_font.render(label, True, c.GRAY)
                 surface.blit(small, (470, y + 6))
         
         # Draw cursor
@@ -281,6 +292,11 @@ class LevelSelect(tools._State):
             down_rect = down_text.get_rect(centerx=c.SCREEN_WIDTH // 2, 
                                            y=150 + self.max_visible * 40)
             surface.blit(down_text, down_rect)
+
+        if self.message and not self.delete_confirm_pending:
+            msg_text = self.small_font.render(self.message, True, c.GOLD)
+            surface.blit(msg_text, msg_text.get_rect(
+                centerx=c.SCREEN_WIDTH // 2, y=520))
 
         if self.delete_confirm_pending:
             warn_text = self.small_font.render(
