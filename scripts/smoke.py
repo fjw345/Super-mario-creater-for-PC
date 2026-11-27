@@ -150,7 +150,7 @@ def check_behaviors(tmp):
         st, _ = start_level(tmp, tiles)
         st.mario.rect.bottom = st.flag_ground_y - 10
         st.flag.rect.x += 0
-        st.create_flag_points()
+        st.create_flag_points(st.flag.rect.x + 13, st.flag_ground_y)
         assert st.flag_score_total == 100, (lift, st.flag_score_total)
 
     # Enemies turn around at a brick/box one tile higher instead of climbing it.
