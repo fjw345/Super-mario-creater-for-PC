@@ -1,6 +1,6 @@
 # 项目概况
 
-Super Mario Creater for PC 是基于 Python 和 Pygame CE 的桌面游戏，包含经典 1-1、自定义关卡编辑器和关卡列表，支持中英文切换。
+Super Mario Creater for PC 是基于 Python 和 Pygame CE 的桌面游戏，包含经典 1-1、自定义关卡编辑器和关卡列表，支持手柄操作和中英文切换。
 
 ## 项目结构
 
@@ -8,6 +8,7 @@ Super Mario Creater for PC 是基于 Python 和 Pygame CE 的桌面游戏，包�
 | --- | --- |
 | [mario_open.py](../mario_open.py)、[data/main.py](../data/main.py) | 游戏入口和状态注册。 |
 | [data/tools.py](../data/tools.py)、[data/setup.py](../data/setup.py) | 游戏循环、输入分发、状态切换，以及窗口、字体、图像和音频的初始化。 |
+| [data/gamepad.py](../data/gamepad.py) | 通过 SDL 读取标准手柄按键和左摇杆，处理设备热插拔。 |
 | [data/states/](../data/states/) | 主菜单、加载等过场界面、经典关卡、编辑器、关卡列表和自定义关卡运行逻辑。 |
 | [data/components/](../data/components/)、[data/game_sound.py](../data/game_sound.py) | Mario、敌人、道具、砖块等精灵，以及 HUD、计分和游戏音效。 |
 | [data/constants.py](../data/constants.py) | 状态名、游戏参数、语言标识、存档使用的方块 ID，以及编辑器网格常量 `TILE_SIZE`、`EDITOR_TOP`、`GRID_HEIGHT`。 |
@@ -21,6 +22,7 @@ Super Mario Creater for PC 是基于 Python 和 Pygame CE 的桌面游戏，包�
 ## 主要流程
 
 - `mario_open.py` 调用 `data.main.main()` 注册状态，从主菜单进入游戏循环。`Control` 每帧处理输入和绘制，在状态切换时把 `cleanup()` 返回的 `persist` 传给下一状态的 `startup()`。
+- `Control` 每帧合并键盘和手柄输入。Back / View 在主菜单对应 `L`，在其他界面对应 `Esc`。切换界面时，按住 Back / View 不会继续触发新界面的操作。完整键位见 [README](../README.md#手柄操作xbox-键位)。
 - 经典模式从主菜单经加载界面进入 [Level1](../data/states/level1.py)。地图布局、敌人和检查点由代码初始化。
 - [LevelEditor](../data/states/level_editor.py) 在地图有旗杆时保存 UTF-8 JSON，包含 `name`、`width`、`height`、`tile_size` 和二维 `tiles`。编辑器测试和 [LevelSelect](../data/states/level_select.py) 都把文件路径传给 [CustomLevel](../data/states/custom_level.py)。后者依据方块 ID 创建地图对象，并根据入口设置返回界面。
 - PyInstaller 配置将 `resources/` 和 `levels/` 随程序打包。当前 Windows ZIP 解压后应保留 `mario_open.exe` 和同级的 `_internal/`。

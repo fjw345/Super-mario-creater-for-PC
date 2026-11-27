@@ -28,7 +28,19 @@ You can download the game from the [Release page](https://github.com/fjw345/Supe
 | Jump | K |
 | Sprint / Action | J |
 | Crouch | S |
-| Exit current custom level | ESC |
+| Exit current level | ESC |
+
+### Controller Controls (Xbox layout)
+
+Controllers recognized by SDL can be connected or disconnected while the game is running. World 1-1 and custom levels use the same mappings.
+
+| Button | Action |
+|---|---|
+| D-pad / Left stick | Move, crouch, navigate menus |
+| A / Y | Jump, confirm in menus |
+| B / X | Sprint / Action |
+| Start | Confirm in menus |
+| Back / View (left of Start) | Switch language in the main menu, act as Esc in levels, the level list, and the editor |
 
 ### General UI Controls
 ![alt text](docs/screenshots/image-1.png)

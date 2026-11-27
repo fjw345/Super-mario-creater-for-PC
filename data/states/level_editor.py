@@ -307,6 +307,7 @@ class LevelEditor(tools._State):
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_ESCAPE:
                 self.cancel_naming_mode()
+                self.wait_for_escape_release = True
             elif event.key in (pg.K_RETURN, pg.K_KP_ENTER):
                 self.confirm_save_with_name()
             elif event.key == pg.K_BACKSPACE:

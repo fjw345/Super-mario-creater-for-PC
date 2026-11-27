@@ -2,6 +2,8 @@ __author__ = 'justinarmstrong'
 
 import os
 import pygame as pg
+from . import constants as c
+from .gamepad import Gamepads
 
 keybinding = {
     'action':pg.K_j,
@@ -10,6 +12,16 @@ keybinding = {
     'right':pg.K_d,
     'down':pg.K_s
 }
+
+
+class PressedKeys:
+    def __init__(self, keyboard, gamepad):
+        self.keyboard = keyboard
+        self.gamepad = gamepad
+
+    def __getitem__(self, key):
+        return key in self.gamepad or self.keyboard[key]
+
 
 class Control(object):
     """Control class for entire project. Contains the game loop, and contains
@@ -24,6 +36,9 @@ class Control(object):
         self.show_fps = False
         self.current_time = 0.0
         self.keys = pg.key.get_pressed()
+        self.gamepads = Gamepads()
+        self.back_held = False
+        self.back_key = None
         self.state_dict = {}
         self.state_name = None
         self.state = None
@@ -39,10 +54,12 @@ class Control(object):
             self.done = True
         elif self.state.done:
             self.flip_state()
+        self.keys = PressedKeys(pg.key.get_pressed(), self.read_gamepad_keys())
         self.state.update(self.screen, self.keys, self.current_time)
 
     def flip_state(self):
         previous, self.state_name = self.state_name, self.state.next
+        self.back_key = None
         persist = self.state.cleanup()
         self.state = self.state_dict[self.state_name]
         self.state.startup(self.current_time, persist)
@@ -50,15 +67,52 @@ class Control(object):
 
 
     def event_loop(self):
+        devices_changed = False
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 self.done = True
             elif event.type == pg.KEYDOWN:
-                self.keys = pg.key.get_pressed()
                 self.toggle_show_fps(event.key)
-            elif event.type == pg.KEYUP:
-                self.keys = pg.key.get_pressed()
+            elif event.type in (pg.CONTROLLERDEVICEADDED, pg.CONTROLLERDEVICEREMOVED):
+                devices_changed = True
             self.state.get_event(event)
+        if devices_changed:
+            self.gamepads.refresh()
+
+
+    def read_gamepad_keys(self):
+        buttons = self.gamepads.pressed_buttons()
+        keys = set()
+        playing = self.state_name in (c.LEVEL1, c.CUSTOM_LEVEL)
+
+        if pg.CONTROLLER_BUTTON_DPAD_LEFT in buttons:
+            keys.add(keybinding['left'] if playing else pg.K_LEFT)
+        if pg.CONTROLLER_BUTTON_DPAD_RIGHT in buttons:
+            keys.add(keybinding['right'] if playing else pg.K_RIGHT)
+        if pg.CONTROLLER_BUTTON_DPAD_DOWN in buttons:
+            keys.add(keybinding['down'] if playing else pg.K_DOWN)
+        if pg.CONTROLLER_BUTTON_DPAD_UP in buttons:
+            keys.add(pg.K_UP)
+
+        if pg.CONTROLLER_BUTTON_A in buttons or pg.CONTROLLER_BUTTON_Y in buttons:
+            keys.add(keybinding['jump'])
+        if playing and (pg.CONTROLLER_BUTTON_B in buttons or pg.CONTROLLER_BUTTON_X in buttons):
+            keys.add(keybinding['action'])
+        if pg.CONTROLLER_BUTTON_START in buttons:
+            keys.add(pg.K_RETURN)
+
+        back_held = pg.CONTROLLER_BUTTON_BACK in buttons
+        if not back_held:
+            self.back_key = None
+        elif not self.back_held:
+            self.back_key = pg.K_l if self.state_name == c.MAIN_MENU else pg.K_ESCAPE
+            # The editor's save dialog handles Escape as a keydown event.
+            if self.back_key == pg.K_ESCAPE:
+                self.state.get_event(pg.event.Event(pg.KEYDOWN, key=self.back_key))
+        self.back_held = back_held
+        if self.back_key is not None:
+            keys.add(self.back_key)
+        return keys
 
 
     def toggle_show_fps(self, key):

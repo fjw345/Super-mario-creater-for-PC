@@ -354,6 +354,15 @@ class Level1(LevelCommon, tools._State):
 
     def update(self, surface, keys, current_time):
         """Updates Entire level using states.  Called by the control object"""
+        if keys[pg.K_ESCAPE]:
+            self.persist[c.TOP_SCORE] = max(self.game_info[c.SCORE], self.persist[c.TOP_SCORE])
+            self.game_info[c.CAMERA_START_X] = 0
+            self.sound_manager.stop_music()
+            setup.SFX['count_down'].stop()
+            self.next = c.MAIN_MENU
+            self.done = True
+            return
+
         self.game_info[c.CURRENT_TIME] = self.current_time = current_time
         self.handle_states(keys)
         self.check_if_time_out()
