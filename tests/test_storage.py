@@ -175,3 +175,21 @@ def test_frozen_dir_uses_appdata(tmp_path, monkeypatch):
     d = storage.levels_dir()
     assert d == str(tmp_path / 'SuperMarioCreater' / 'custom_levels')
     assert os.path.isdir(d)
+
+
+def test_tile_table_is_consistent():
+    from data import tiles
+    ids = [t.id for t in tiles.TILES]
+    assert len(ids) == len(set(ids)) == 10
+    assert set(ids) <= storage.KNOWN_TILES
+    assert storage.KNOWN_TILES - set(ids) == {c.TILE_EMPTY}
+    assert all(t.zh and t.en for t in tiles.TILES)
+    assert tiles.display_name('nope', 'en') == 'NOPE'
+
+
+def test_every_tile_has_a_runtime_creator():
+    pytest.importorskip('pygame')
+    os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
+    from data import tiles
+    from data.states.custom_level import CustomLevel
+    assert set(CustomLevel.TILE_CREATORS) == {t.id for t in tiles.TILES}

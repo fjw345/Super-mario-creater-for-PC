@@ -53,8 +53,8 @@ class CustomLevel(tools._State):
         
         # Load the custom level
         self.level_path = self.game_info.get('custom_level_path', None)
-        self.tile_size = 43
-        self.grid_height = 13
+        self.tile_size = c.TILE_SIZE
+        self.grid_height = c.GRID_HEIGHT
         self.flag_tile = None
         
         self.load_error = None
@@ -216,74 +216,77 @@ class CustomLevel(tools._State):
         for y, row in enumerate(self.level_data):
             for x, tile_type in enumerate(row):
                 world_x = x * self.tile_size
-                world_y = y * self.tile_size + 70  # Offset matching editor
+                world_y = y * self.tile_size + c.EDITOR_TOP
                 
                 self.create_tile(tile_type, world_x, world_y, x, y)
     
     def create_tile(self, tile_type, world_x, world_y, grid_x, grid_y):
-        """Create appropriate game object for tile type"""
-        
-        if tile_type == c.TILE_GROUND:
-            # Create ground collider
-            ground = collider.Collider(world_x, world_y, 
-                                       self.tile_size, self.tile_size)
-            self.ground_group.add(ground)
-        
-        elif tile_type == c.TILE_BRICK:
-            # Create breakable brick
-            brick = bricks.Brick(world_x, world_y)
-            self.brick_group.add(brick)
-        
-        elif tile_type == c.TILE_COIN_BOX:
-            # Upgrade box: mushroom for small Mario, fireflower for big Mario.
-            box = coin_box.Coin_box(world_x, world_y, c.MUSHROOM, self.powerup_group)
-            self.coin_box_group.add(box)
-        
-        elif tile_type == c.TILE_PIPE:
-            # Create full-size pipe collider (same style as 1-1 pipes)
-            pipe = collider.Collider(world_x, world_y,
-                                    self.pipe_world_width, self.pipe_world_height)
-            self.pipe_group.add(pipe)
-        
-        elif tile_type == c.TILE_GOOMBA:
-            # Create goomba enemy
-            goomba = enemies.Goomba()
-            goomba.rect.x = world_x
-            goomba.rect.bottom = world_y + self.tile_size
-            self.pending_enemies.append(goomba)
-        
-        elif tile_type == c.TILE_KOOPA:
-            # Create koopa enemy
-            koopa = enemies.Koopa()
-            koopa.rect.x = world_x
-            koopa.rect.bottom = world_y + self.tile_size
-            self.pending_enemies.append(koopa)
-        
-        elif tile_type == c.TILE_COIN:
-            # Coin question box that yields coin when bumped.
-            box = coin_box.Coin_box(world_x, world_y, c.COIN, self.coin_group)
-            self.coin_box_group.add(box)
-        
-        elif tile_type == c.TILE_FLAG:
-            # Create flag pole (only create one)
-            if not self.flag_placed:
-                self.setup_flag_pole(world_x, world_y)
-                self.flag_placed = True
+        """Create the game object for a tile ID via TILE_CREATORS."""
+        creator = self.TILE_CREATORS.get(tile_type)
+        if creator is not None:
+            creator(self, world_x, world_y)
 
-        elif tile_type == c.TILE_MUSHROOM:
-            # Place a mushroom powerup tile (same class as question-box mushroom)
-            item = powerups.Mushroom(world_x + self.tile_size // 2, world_y)
-            item.rect.bottom = world_y + self.tile_size
-            item.state = c.SLIDE
-            self.pending_powerups.append(item)
+    def _make_ground(self, world_x, world_y):
+        self.ground_group.add(collider.Collider(
+            world_x, world_y, self.tile_size, self.tile_size))
 
-        elif tile_type == c.TILE_FIREFLOWER:
-            # Place a fire flower powerup tile (same class as question-box fireflower)
-            item = powerups.FireFlower(world_x + self.tile_size // 2, world_y)
-            item.rect.bottom = world_y + self.tile_size
-            item.state = c.RESTING
-            self.powerup_group.add(item)
-    
+    def _make_brick(self, world_x, world_y):
+        self.brick_group.add(bricks.Brick(world_x, world_y))
+
+    def _make_upgrade_box(self, world_x, world_y):
+        # Mushroom for small Mario, fireflower for big Mario.
+        self.coin_box_group.add(coin_box.Coin_box(
+            world_x, world_y, c.MUSHROOM, self.powerup_group))
+
+    def _make_coin_box(self, world_x, world_y):
+        self.coin_box_group.add(coin_box.Coin_box(
+            world_x, world_y, c.COIN, self.coin_group))
+
+    def _make_pipe(self, world_x, world_y):
+        # Full-size pipe collider (same size as 1-1 pipes).
+        self.pipe_group.add(collider.Collider(
+            world_x, world_y, self.pipe_world_width, self.pipe_world_height))
+
+    def _make_enemy(self, enemy_cls):
+        def make(self, world_x, world_y):
+            enemy = enemy_cls()
+            enemy.rect.x = world_x
+            enemy.rect.bottom = world_y + self.tile_size
+            self.pending_enemies.append(enemy)
+        return make
+
+    def _make_flag(self, world_x, world_y):
+        if not self.flag_placed:  # only the first flagpole counts
+            self.setup_flag_pole(world_x, world_y)
+            self.flag_placed = True
+
+    def _make_mushroom(self, world_x, world_y):
+        item = powerups.Mushroom(world_x + self.tile_size // 2, world_y)
+        item.rect.bottom = world_y + self.tile_size
+        item.state = c.SLIDE
+        self.pending_powerups.append(item)
+
+    def _make_fireflower(self, world_x, world_y):
+        item = powerups.FireFlower(world_x + self.tile_size // 2, world_y)
+        item.rect.bottom = world_y + self.tile_size
+        item.state = c.RESTING
+        self.powerup_group.add(item)
+
+    # Tile ID -> creator. To add a tile, add its ID in constants.py, a row in
+    # data/tiles.py, and an entry here.
+    TILE_CREATORS = {
+        c.TILE_GROUND: _make_ground,
+        c.TILE_BRICK: _make_brick,
+        c.TILE_COIN_BOX: _make_upgrade_box,
+        c.TILE_COIN: _make_coin_box,
+        c.TILE_PIPE: _make_pipe,
+        c.TILE_GOOMBA: _make_enemy(None, enemies.Goomba),
+        c.TILE_KOOPA: _make_enemy(None, enemies.Koopa),
+        c.TILE_FLAG: _make_flag,
+        c.TILE_MUSHROOM: _make_mushroom,
+        c.TILE_FIREFLOWER: _make_fireflower,
+    }
+
     def setup_flag_pole(self, tile_world_x, tile_world_y):
         """Create a flag pole using the same anchor logic as the editor preview."""
         # In editor, full flagpole image is 2x10 tiles and the selected tile is the bottom-left anchor.
@@ -1485,13 +1488,13 @@ class CustomLevel(tools._State):
                 if tile_type == c.TILE_GROUND:
                     # Draw using world coordinates onto the level surface.
                     world_x = x * self.tile_size
-                    world_y = y * self.tile_size + 70
+                    world_y = y * self.tile_size + c.EDITOR_TOP
                     surface.blit(self.ground_tile_image, (world_x, world_y))
                 
                 elif tile_type == c.TILE_PIPE:
                     # Draw as a complete pipe in world coordinates.
                     world_x = x * self.tile_size
-                    world_y = y * self.tile_size + 70
+                    world_y = y * self.tile_size + c.EDITOR_TOP
 
                     surface.blit(self.pipe_world_image, (world_x, world_y))
 

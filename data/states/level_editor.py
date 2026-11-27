@@ -3,9 +3,12 @@
 import pygame as pg
 import json
 import os
-from .. import setup, tools, storage
+from .. import setup, tools, storage, tiles
 from .. import constants as c
 from .. components import mario
+
+NUMBER_KEYS = (pg.K_1, pg.K_2, pg.K_3, pg.K_4, pg.K_5,
+               pg.K_6, pg.K_7, pg.K_8, pg.K_9, pg.K_0)
 
 
 class LevelEditor(tools._State):
@@ -24,9 +27,9 @@ class LevelEditor(tools._State):
         self.next = c.MAIN_MENU
         
         # Grid settings
-        self.tile_size = 43  # Size of each tile in pixels
+        self.tile_size = c.TILE_SIZE  # Size of each tile in pixels
         self.grid_width = 200  # Number of tiles horizontally
-        self.grid_height = 13  # Number of tiles vertically
+        self.grid_height = c.GRID_HEIGHT  # Number of tiles vertically
         
         # Camera/viewport
         self.camera_x = 0
@@ -36,13 +39,8 @@ class LevelEditor(tools._State):
         self.level_data = []
         
         # Current selected tile type
-        # Slot order:
-        # 1 ground, 2 upgrade box, 3 pipe, 4 goomba, 5 koopa,
-        # 6 coin box, 7 brick, 8 flag, 9 mushroom, 0 fireflower.
-        self.tile_types = [c.TILE_GROUND, c.TILE_COIN_BOX,
-                  c.TILE_PIPE, c.TILE_GOOMBA, c.TILE_KOOPA,
-              c.TILE_COIN, c.TILE_BRICK, c.TILE_FLAG,
-              c.TILE_MUSHROOM, c.TILE_FIREFLOWER]
+        # Slot order comes from data/tiles.py (keys 1..9, then 0).
+        self.tile_types = list(tiles.PALETTE_IDS)
         self.current_tile_index = 0
         self.current_tile = self.tile_types[self.current_tile_index]
         
@@ -138,34 +136,30 @@ class LevelEditor(tools._State):
         self.item_sheet = setup.GFX['item_objects']
         self.enemy_sheet = setup.GFX['smb_enemies_sheet']
         
+        sheets = {'tile_set': self.sprite_sheet,
+                  'item_objects': self.item_sheet,
+                  'smb_enemies_sheet': self.enemy_sheet}
+        composed_icons = {'pipe_icon': self.get_pipe_icon_image,
+                          'koopa_icon': self.get_koopa_icon_image}
+        composed_world = {'pipe': self.get_pipe_world_image,
+                          'koopa': self.get_koopa_world_image,
+                          'flagpole': self.get_flagpole_world_image}
+
+        # Palette icons (1x1 slot) and full-size world images for tiles that
+        # are bigger than one cell, all driven by data/tiles.py.
         self.tile_images = {}
-        
-        # Ground tile
-        self.tile_images[c.TILE_GROUND] = self.get_image(self.sprite_sheet, 0, 16, 16, 16)
-        # Brick tile
-        self.tile_images[c.TILE_BRICK] = self.get_image(self.sprite_sheet, 16, 0, 16, 16)
-        # Coin box (question block)
-        self.tile_images[c.TILE_COIN_BOX] = self.get_image(self.sprite_sheet, 384, 0, 16, 16)
-        # Pipe icon: complete pipe shrunk into a 1x1 slot for palette display.
-        self.tile_images[c.TILE_PIPE] = self.get_pipe_icon_image()
-        # Full-size pipe used when drawing placed tiles in the level area.
-        self.pipe_world_image = self.get_pipe_world_image()
-        # Coin block (question block variant)
-        self.tile_images[c.TILE_COIN] = self.get_image(self.sprite_sheet, 416, 0, 16, 16)
-        # Goomba
-        self.tile_images[c.TILE_GOOMBA] = self.get_image(self.enemy_sheet, 0, 4, 16, 16)
-        # Koopa icon: complete koopa shrunk into a 1x1 slot for palette display.
-        self.tile_images[c.TILE_KOOPA] = self.get_koopa_icon_image()
-        # Full-size koopa used when drawing placed tiles in the level area.
-        self.koopa_world_image = self.get_koopa_world_image()
-        # Flag
-        self.tile_images[c.TILE_FLAG] = self.get_image(self.item_sheet, 128, 32, 16, 16)
-        # Mushroom
-        self.tile_images[c.TILE_MUSHROOM] = self.get_image(self.item_sheet, 0, 0, 16, 16)
-        # Fire flower
-        self.tile_images[c.TILE_FIREFLOWER] = self.get_image(self.item_sheet, 0, 32, 16, 16)
-        # Full-size flagpole used when drawing placed tiles in the level area.
-        self.flagpole_world_image = self.get_flagpole_world_image()
+        self.tile_world_images = {}
+        self.tile_anchors = {}
+        for tile in tiles.TILES:
+            if isinstance(tile.icon, str):
+                self.tile_images[tile.id] = composed_icons[tile.icon]()
+            else:
+                sheet_name, x, y, w, h = tile.icon
+                self.tile_images[tile.id] = self.get_image(
+                    sheets[sheet_name], x, y, w, h)
+            if tile.world:
+                self.tile_world_images[tile.id] = composed_world[tile.world]()
+            self.tile_anchors[tile.id] = tile.anchor
         # Empty is kept for right-click erase logic, but no longer shown in the palette.
         empty_surface = pg.Surface([16, 16], pg.SRCALPHA)
         empty_surface.fill((0, 0, 0, 0))
@@ -349,38 +343,17 @@ class LevelEditor(tools._State):
         if keys[pg.K_LEFT] or keys[pg.K_a]:
             self.camera_x = max(self.camera_x - self.scroll_speed, 0)
         
-        # Change tile type with number keys
-        if keys[pg.K_1] and not self.key_pressed:
-            self.current_tile_index = 0
+        # Change tile type with number keys (slot order: 1..9, then 0)
+        number_slot = None
+        if not self.key_pressed:
+            for slot, key in enumerate(NUMBER_KEYS):
+                if keys[key] and slot < len(self.tile_types):
+                    number_slot = slot
+                    break
+        if number_slot is not None:
+            self.current_tile_index = number_slot
             self.key_pressed = True
-        elif keys[pg.K_2] and not self.key_pressed:
-            self.current_tile_index = 1
-            self.key_pressed = True
-        elif keys[pg.K_3] and not self.key_pressed:
-            self.current_tile_index = 2
-            self.key_pressed = True
-        elif keys[pg.K_4] and not self.key_pressed:
-            self.current_tile_index = 3
-            self.key_pressed = True
-        elif keys[pg.K_5] and not self.key_pressed:
-            self.current_tile_index = 4
-            self.key_pressed = True
-        elif keys[pg.K_6] and not self.key_pressed:
-            self.current_tile_index = 5
-            self.key_pressed = True
-        elif keys[pg.K_7] and not self.key_pressed:
-            self.current_tile_index = 6
-            self.key_pressed = True
-        elif keys[pg.K_8] and not self.key_pressed:
-            self.current_tile_index = 7
-            self.key_pressed = True
-        elif keys[pg.K_9] and not self.key_pressed:
-            self.current_tile_index = 8
-            self.key_pressed = True
-        elif keys[pg.K_0] and not self.key_pressed:
-            self.current_tile_index = 9
-            self.key_pressed = True
-        
+
         # Cycle tiles with Q/E
         elif keys[pg.K_q] and not self.key_pressed:
             self.current_tile_index = (self.current_tile_index - 1) % len(self.tile_types)
@@ -456,11 +429,9 @@ class LevelEditor(tools._State):
             self.key_pressed = True
         
         # Reset key pressed when no keys
-        if not any([keys[pg.K_1], keys[pg.K_2], keys[pg.K_3], keys[pg.K_4],
-                                     keys[pg.K_5], keys[pg.K_6], keys[pg.K_7], keys[pg.K_8],
-                                     keys[pg.K_9], keys[pg.K_0],
-                                 keys[pg.K_q], keys[pg.K_e], keys[pg.K_s], keys[pg.K_c],
-                   keys[pg.K_ESCAPE], keys[pg.K_t]]):
+        if not any([any(keys[k] for k in NUMBER_KEYS),
+                    keys[pg.K_q], keys[pg.K_e], keys[pg.K_s], keys[pg.K_c],
+                    keys[pg.K_ESCAPE], keys[pg.K_t]]):
             self.key_pressed = False
 
         if not keys[pg.K_h]:
@@ -500,7 +471,7 @@ class LevelEditor(tools._State):
         
         # Convert mouse position to grid coordinates
         grid_x = (mouse_pos[0] + self.camera_x) // self.tile_size
-        grid_y = (mouse_pos[1] - 70) // self.tile_size  # Offset for UI
+        grid_y = (mouse_pos[1] - c.EDITOR_TOP) // self.tile_size  # Offset for UI
 
         # Ignore map editing clicks on expanded help table area.
         if self.show_help_panel and self.get_help_panel_rect().collidepoint(mouse_pos):
@@ -509,7 +480,7 @@ class LevelEditor(tools._State):
         # Check if within grid bounds and not in UI area
         if (0 <= grid_x < self.grid_width and 
             0 <= grid_y < self.grid_height and
-            mouse_pos[1] > 70):
+            mouse_pos[1] > c.EDITOR_TOP):
             
             # Left click to place tile
             if mouse_buttons[0]:
@@ -545,14 +516,14 @@ class LevelEditor(tools._State):
         """Draw a semi-transparent preview at current mouse grid position."""
         mouse_x, mouse_y = pg.mouse.get_pos()
 
-        if mouse_y <= 70:
+        if mouse_y <= c.EDITOR_TOP:
             return
 
         if self.show_help_panel and self.get_help_panel_rect().collidepoint((mouse_x, mouse_y)):
             return
 
         grid_x = (mouse_x + self.camera_x) // self.tile_size
-        grid_y = (mouse_y - 70) // self.tile_size
+        grid_y = (mouse_y - c.EDITOR_TOP) // self.tile_size
 
         if not (0 <= grid_x < self.grid_width and 0 <= grid_y < self.grid_height):
             return
@@ -561,27 +532,17 @@ class LevelEditor(tools._State):
             return
 
         screen_x = grid_x * self.tile_size - self.camera_x
-        screen_y = grid_y * self.tile_size + 70
+        screen_y = grid_y * self.tile_size + c.EDITOR_TOP
 
-        if self.current_tile == c.TILE_PIPE:
-            preview = self.pipe_world_image.copy()
-            preview.set_alpha(140)
-            surface.blit(preview, (screen_x, screen_y))
-        elif self.current_tile == c.TILE_KOOPA:
-            preview = self.koopa_world_image.copy()
-            preview.set_alpha(140)
-            koopa_y = screen_y - (self.koopa_world_image.get_height() - self.tile_size)
-            surface.blit(preview, (screen_x, koopa_y))
-        elif self.current_tile == c.TILE_FLAG:
-            preview = self.flagpole_world_image.copy()
-            preview.set_alpha(140)
-            flag_y = screen_y - (self.flagpole_world_image.get_height() - self.tile_size)
-            surface.blit(preview, (screen_x, flag_y))
-        elif self.current_tile in self.tile_images:
-            preview = self.tile_images[self.current_tile].copy()
-            preview.set_alpha(140)
-            surface.blit(preview, (screen_x, screen_y))
-    
+        image = self.tile_world_images.get(self.current_tile,
+                                           self.tile_images.get(self.current_tile))
+        if image is None:
+            return
+        preview = image.copy()
+        preview.set_alpha(140)
+        surface.blit(preview, self.tile_blit_pos(self.current_tile, image,
+                                                 screen_x, screen_y))
+
     def draw_tiles(self, surface):
         """Draw all placed tiles"""
         # Calculate visible tile range
@@ -593,19 +554,20 @@ class LevelEditor(tools._State):
                 tile_type = self.level_data[y][x]
                 if tile_type != c.TILE_EMPTY:
                     screen_x = x * self.tile_size - self.camera_x
-                    screen_y = y * self.tile_size + 70  # Offset for UI
+                    screen_y = y * self.tile_size + c.EDITOR_TOP  # Offset for UI
 
-                    if tile_type == c.TILE_PIPE:
-                        surface.blit(self.pipe_world_image, (screen_x, screen_y))
-                    elif tile_type == c.TILE_KOOPA:
-                        koopa_y = screen_y - (self.koopa_world_image.get_height() - self.tile_size)
-                        surface.blit(self.koopa_world_image, (screen_x, koopa_y))
-                    elif tile_type == c.TILE_FLAG:
-                        flag_y = screen_y - (self.flagpole_world_image.get_height() - self.tile_size)
-                        surface.blit(self.flagpole_world_image, (screen_x, flag_y))
-                    elif tile_type in self.tile_images:
-                        surface.blit(self.tile_images[tile_type], (screen_x, screen_y))
-    
+                    image = self.tile_world_images.get(
+                        tile_type, self.tile_images.get(tile_type))
+                    if image is not None:
+                        surface.blit(image, self.tile_blit_pos(
+                            tile_type, image, screen_x, screen_y))
+
+    def tile_blit_pos(self, tile_type, image, screen_x, screen_y):
+        """Top-left draw position of a tile image for its grid cell."""
+        if self.tile_anchors.get(tile_type) == 'bottom':
+            return (screen_x, screen_y - (image.get_height() - self.tile_size))
+        return (screen_x, screen_y)
+
     def draw_grid(self, surface):
         """Draw the grid lines"""
         # Calculate visible tile range
@@ -615,18 +577,18 @@ class LevelEditor(tools._State):
         for x in range(start_x, start_x + c.SCREEN_WIDTH // self.tile_size + 2):
             screen_x = x * self.tile_size - self.camera_x
             pg.draw.line(surface, (100, 100, 100), 
-                        (screen_x, 70), (screen_x, c.SCREEN_HEIGHT), 1)
+                        (screen_x, c.EDITOR_TOP), (screen_x, c.SCREEN_HEIGHT), 1)
         
         # Horizontal lines
         for y in range(self.grid_height + 1):
-            screen_y = y * self.tile_size + 70
+            screen_y = y * self.tile_size + c.EDITOR_TOP
             pg.draw.line(surface, (100, 100, 100),
                         (0, screen_y), (c.SCREEN_WIDTH, screen_y), 1)
     
     def draw_ui(self, surface):
         """Draw the UI panel"""
         # Draw UI background
-        pg.draw.rect(surface, (50, 50, 50), (0, 0, c.SCREEN_WIDTH, 70))
+        pg.draw.rect(surface, (50, 50, 50), (0, 0, c.SCREEN_WIDTH, c.EDITOR_TOP))
         
         # Draw tile palette
         for i, tile_type in enumerate(self.tile_types):
@@ -697,7 +659,7 @@ class LevelEditor(tools._State):
 
         if rect.right < 0 or rect.left > c.SCREEN_WIDTH:
             return
-        if rect.bottom <= 70 or rect.top >= c.SCREEN_HEIGHT:
+        if rect.bottom <= c.EDITOR_TOP or rect.top >= c.SCREEN_HEIGHT:
             return
 
         surface.blit(image, rect)
@@ -828,35 +790,8 @@ class LevelEditor(tools._State):
 
     def get_tile_display_name(self, tile_type):
         """Return localized, user-friendly tile name for the palette."""
-        zh_names = {
-            c.TILE_GROUND: '地面',
-            c.TILE_COIN_BOX: '升级问号砖',
-            c.TILE_PIPE: '管道',
-            c.TILE_GOOMBA: '栗子怪',
-            c.TILE_KOOPA: '乌龟',
-            c.TILE_COIN: '金币问号砖',
-            c.TILE_BRICK: '砖块',
-            c.TILE_FLAG: '旗杆',
-            c.TILE_MUSHROOM: '蘑菇',
-            c.TILE_FIREFLOWER: '火焰花',
-        }
-        en_names = {
-            c.TILE_GROUND: 'GROUND',
-            c.TILE_COIN_BOX: 'UPGRADE QUESTION BOX',
-            c.TILE_PIPE: 'PIPE',
-            c.TILE_GOOMBA: 'GOOMBA',
-            c.TILE_KOOPA: 'KOOPA',
-            c.TILE_COIN: 'COIN QUESTION BOX',
-            c.TILE_BRICK: 'BRICK',
-            c.TILE_FLAG: 'FLAGPOLE',
-            c.TILE_MUSHROOM: 'MUSHROOM',
-            c.TILE_FIREFLOWER: 'FIRE FLOWER',
-        }
+        return tiles.display_name(tile_type, self.game_info.get(c.LANGUAGE, 'zh'))
 
-        if self.game_info.get(c.LANGUAGE, 'zh') == 'zh':
-            return zh_names.get(tile_type, tile_type)
-        return en_names.get(tile_type, tile_type.upper())
-    
     def sanitize_level_name(self, raw_name):
         """Return a safe file name without extension."""
         return storage.sanitize_name(raw_name)

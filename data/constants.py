@@ -195,6 +195,11 @@ TILE_MUSHROOM = 'mushroom_tile'
 TILE_FIREFLOWER = 'fireflower_tile'
 TILE_EMPTY = 'empty'
 
+# Editor grid shared by the editor and the custom level runtime.
+TILE_SIZE = 43
+EDITOR_TOP = 70
+GRID_HEIGHT = 13
+
 
 
 

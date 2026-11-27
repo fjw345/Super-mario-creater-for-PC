@@ -14,9 +14,9 @@ from . import constants as c
 APP_DIR_NAME = 'SuperMarioCreater'
 MIGRATION_MARKER = '.migrated_v1'
 LEVEL_VERSION = 1
-GRID_HEIGHT = 13
+GRID_HEIGHT = c.GRID_HEIGHT
 MAX_WIDTH = 1000
-TILE_SIZE = 43
+TILE_SIZE = c.TILE_SIZE
 MAX_NAME_LEN = 32
 
 RESERVED_NAMES = {'CON', 'PRN', 'AUX', 'NUL'}
