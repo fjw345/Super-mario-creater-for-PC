@@ -361,17 +361,6 @@ class CustomLevel(LevelCommon, tools._State):
         self.blit_everything(surface)
         self.sound_manager.update(self.game_info, self.mario)
     
-    def handle_states(self, keys):
-        """If the level is in a FROZEN state, only mario will update"""
-        if self.state == c.FROZEN:
-            self.update_during_transition_state(keys)
-        elif self.state == c.NOT_FROZEN:
-            self.update_all_sprites(keys)
-        elif self.state == c.IN_CASTLE:
-            self.update_while_in_castle()
-        elif self.state == c.FLAG_AND_FIREWORKS:
-            self.update_flag_and_fireworks()
-    
     def update_during_transition_state(self, keys):
         """Updates mario in a transition state"""
         self.mario.update(keys, self.game_info, self.powerup_group)
@@ -387,14 +376,6 @@ class CustomLevel(LevelCommon, tools._State):
         self.check_for_mario_death()
         self.check_auto_finish_after_flag()
         self.overhead_info_display.update(self.game_info, self.mario)
-    
-    def check_if_mario_in_transition_state(self):
-        """If mario is in a transition state, the level will be in a FREEZE state"""
-        if self.mario.in_transition_state:
-            self.game_info[c.LEVEL_STATE] = self.state = c.FROZEN
-        elif self.mario.in_transition_state == False:
-            if self.state == c.FROZEN:
-                self.game_info[c.LEVEL_STATE] = self.state = c.NOT_FROZEN
     
     def update_all_sprites(self, keys):
         """Updates the location of all sprites on the screen."""
@@ -492,29 +473,6 @@ class CustomLevel(LevelCommon, tools._State):
             self.flag_score_total = 0
 
 
-    def adjust_sprite_positions(self):
-        """Adjusts sprites by their x and y velocities and collisions"""
-        self.adjust_mario_position()
-        self.adjust_enemy_position()
-        self.adjust_shell_position()
-        self.adjust_powerup_position()
-
-
-    def adjust_mario_position(self):
-        """Adjusts Mario's position based on his x, y velocities and
-        potential collisions"""
-        self.last_x_position = self.mario.rect.right
-        self.mario.rect.x += round(self.mario.x_vel)
-        self.check_mario_x_collisions()
-
-        if self.mario.in_transition_state == False:
-            self.mario.rect.y += round(self.mario.y_vel)
-            self.check_mario_y_collisions()
-
-        if self.mario.rect.x < (self.viewport.x + 5):
-            self.mario.rect.x = (self.viewport.x + 5)
-
-
     def check_mario_x_collisions(self):
         """Check for collisions after Mario is moved on the x axis"""
         collider = pg.sprite.spritecollideany(self.mario, self.ground_step_pipe_group)
@@ -605,16 +563,6 @@ class CustomLevel(LevelCommon, tools._State):
 
             if powerup.name != c.FIREBALL:
                 powerup.kill()
-
-
-    def adjust_mario_for_x_collisions(self, collider):
-        """Puts Mario flush next to the collider after moving on the x axis"""
-        if self.mario.rect.x < collider.rect.x:
-            self.mario.rect.right = collider.rect.left
-        else:
-            self.mario.rect.left = collider.rect.right
-
-        self.mario.x_vel = 0
 
 
     def adjust_mario_for_x_shell_collisions(self, shell):
@@ -820,31 +768,6 @@ class CustomLevel(LevelCommon, tools._State):
             self.mario.y_vel = 7
             self.mario.rect.top = collider.rect.bottom
             self.mario.state = c.FALL
-
-
-    def test_if_mario_is_falling(self):
-        """Changes Mario to a FALL state if more than a pixel above a pipe,
-        ground, step or box"""
-        self.mario.rect.y += 1
-        test_collide_group = pg.sprite.Group(self.ground_step_pipe_group,
-                                             self.brick_group,
-                                             self.coin_box_group)
-
-        if pg.sprite.spritecollideany(self.mario, test_collide_group) is None:
-            if self.mario.state != c.JUMP \
-                and self.mario.state != c.DEATH_JUMP \
-                and self.mario.state != c.SMALL_TO_BIG \
-                and self.mario.state != c.BIG_TO_FIRE \
-                and self.mario.state != c.BIG_TO_SMALL \
-                and self.mario.state != c.FLAGPOLE \
-                and self.mario.state != c.WALKING_TO_CASTLE \
-                and self.mario.state != c.END_OF_LEVEL_FALL:
-                self.mario.state = c.FALL
-            elif self.mario.state == c.WALKING_TO_CASTLE or \
-                self.mario.state == c.END_OF_LEVEL_FALL:
-                self.mario.state = c.END_OF_LEVEL_FALL
-
-        self.mario.rect.y -= 1
 
 
     def adjust_mario_for_y_enemy_collisions(self, enemy):
